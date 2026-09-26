@@ -1,0 +1,1307 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TaskHub POC - מסמך אפיון טכני v3</title>
+<style>
+:root{color-scheme:light}*{box-sizing:border-box}body{margin:0;background:#f5f6f8;color:#20242b;font-family:Arial,"Segoe UI",sans-serif;direction:rtl}main{max-width:1120px;margin:0 auto;background:#fff;min-height:100vh;padding:42px 54px}h1,h2,h3{color:#182230;line-height:1.25}h1{font-size:30px;border-bottom:2px solid #d9dee7;padding-bottom:12px}h2{font-size:24px;margin-top:34px}h3{font-size:19px;margin-top:26px}p,li{font-size:15px;line-height:1.7}code,kbd,pre{direction:ltr;text-align:left;font-family:Consolas,"Courier New",monospace}code{background:#f2f4f7;padding:1px 4px;border-radius:3px}pre{background:#f8fafc;border:1px solid #d0d5dd;padding:14px;overflow:auto;line-height:1.45;border-radius:5px}pre code{background:transparent;padding:0}table{width:100%;border-collapse:collapse;margin:18px 0 24px}th,td{border:1px solid #d0d5dd;padding:9px 11px;text-align:right;vertical-align:top}th{background:#f2f4f7}blockquote{border-right:4px solid #667085;margin:18px 0;padding:4px 16px;color:#475467;background:#f9fafb}a{color:#305ea8;word-break:break-word}hr{border:0;border-top:1px solid #d9dee7;margin:34px 0}strong{color:#111827}@media(max-width:760px){main{padding:24px 18px}h1{font-size:25px}h2{font-size:21px}}
+</style>
+</head>
+<body><main>
+<h1 id="taskhub-poc---מסמך-אפיון-טכני">TaskHub POC - מסמך אפיון
+טכני</h1>
+<p><strong>גרסה:</strong> 3.0<br />
+<strong>Database:</strong> Oracle Database 19c+<br />
+<strong>Future UI:</strong> Oracle APEX<br />
+<strong>Implementation target:</strong> Codex CLI + Oracle SQLcl
+MCP<br />
+<strong>Purpose:</strong> Proof of Concept בלבד</p>
+<hr />
+<h2 id="1-מטרת-המערכת">1. מטרת המערכת</h2>
+<p><code>TaskHub</code> היא מערכת POC קטנה לניהול רשימות משימות.</p>
+<p>לכל משתמש אפליקטיבי יהיו מספר <code>To-Do Lists</code>.<br />
+לכל רשימה יהיו מספר <code>Tags</code>.<br />
+בכל רשימה יהיו <code>Tasks</code>, כאשר Task יכול להכיל Subtasks עד עומק
+של 3 רמות מתחת ל-Task הראשי.</p>
+<p>המטרה המרכזית של ה-POC היא לבדוק:</p>
+<ul>
+<li>יצירת Data Model באמצעות <strong>Oracle APEX Quick
+SQL</strong>.</li>
+<li>מימוש API ב-PL/SQL.</li>
+<li>הפרדה אבטחתית מלאה בין Data Owner, Code/API Owner ו-Application
+Schema.</li>
+<li>שימוש ב-Oracle Application Context לצורך זיהוי המשתמש.</li>
+<li>חשיפת נתונים לקריאה דרך Views בלבד.</li>
+<li>Soft Delete ו-Purge חודשי.</li>
+<li>יכולת של Codex לממש, לבדוק ולבנות מחדש את המערכת בשלבים מתוך Git
+בלבד לאחר bootstrap ידני של סביבת המעבדה.</li>
+</ul>
+<hr />
+<h1 id="2-ארכיטקטורה">2. ארכיטקטורה</h1>
+<h2 id="21-שלושה-schemas">2.1 שלושה Schemas</h2>
+<p>ה-POC משתמש בשלושה Schemas נפרדים כדי ליצור Security Separation אמיתי
+בין הנתונים, הקוד האפליקטיבי וה-Application Schema.</p>
+<h3 id="taskhub_owner"><code>TASKHUB_OWNER</code></h3>
+<p>זהו ה-Data Owner בלבד.</p>
+<p>הוא יהיה הבעלים של:</p>
+<ul>
+<li>Tables</li>
+<li>Primary Keys, Foreign Keys, Unique ו-Check Constraints</li>
+<li>Indexes</li>
+<li>Identity Columns והאובייקטים הפנימיים הנלווים להם</li>
+<li><code>COMMENT ON TABLE</code></li>
+<li><code>COMMENT ON COLUMN</code></li>
+</ul>
+<p><code>TASKHUB_OWNER</code> אינו מכיל את ה-API האפליקטיבי ואינו מקבל
+הרשאות APEX.</p>
+<h3 id="taskhub_api"><code>TASKHUB_API</code></h3>
+<p>זהו ה-Code/API Owner.</p>
+<p>הוא יהיה הבעלים של:</p>
+<ul>
+<li><code>PKG_TASKHUB_CONTEXT_CORE</code></li>
+<li><code>PKG_TASKHUB_CONTEXT</code></li>
+<li><code>PKG_TASKHUB_TEST_CONTEXT</code> במעבדת DEV בלבד</li>
+<li><code>PKG_TASKHUB_API</code></li>
+<li><code>PKG_TASKHUB_MAINT</code></li>
+<li><code>V_TODO_LISTS</code></li>
+<li><code>V_TODO_LIST_TAGS</code></li>
+<li><code>V_TASKS</code></li>
+<li><code>V_TASK_TREE</code></li>
+<li><code>JOB_TASKHUB_PURGE_MONTHLY</code></li>
+</ul>
+<p><code>TASKHUB_API</code> יקבל מ-<code>TASKHUB_OWNER</code> רק Object
+Grants מפורשים הדרושים לקומפילציה ולביצוע של הקוד וה-Views. אין להשתמש
+ב-<code>SELECT ANY TABLE</code>, ב-<code>UPDATE ANY TABLE</code> או
+בהרשאות <code>ANY</code> דומות.</p>
+<h3 id="taskhub_app"><code>TASKHUB_APP</code></h3>
+<p>זהו ה-Application Schema.</p>
+<p>בעתיד הוא יהיה ה-Parsing Schema של Oracle APEX.</p>
+<p>ל-<code>TASKHUB_APP</code> יהיו רק:</p>
+<ul>
+<li><code>EXECUTE</code> על
+<code>TASKHUB_API.PKG_TASKHUB_CONTEXT</code></li>
+<li><code>EXECUTE</code> על
+<code>TASKHUB_API.PKG_TASKHUB_API</code></li>
+<li><code>SELECT</code> על Views מאושרים ב-<code>TASKHUB_API</code></li>
+</ul>
+<p>לא יהיו לו הרשאות ישירות על Tables של <code>TASKHUB_OWNER</code>.</p>
+<p>לא יהיו לו הרשאות על:</p>
+<ul>
+<li><code>PKG_TASKHUB_CONTEXT_CORE</code></li>
+<li><code>PKG_TASKHUB_TEST_CONTEXT</code></li>
+<li><code>PKG_TASKHUB_MAINT</code></li>
+</ul>
+<h2 id="22-application-context">2.2 Application Context</h2>
+<p>יוגדר Context Namespace בשם:</p>
+<pre class="text"><code>TASKHUB_CTX</code></pre>
+<p>ה-Context ייווצר ידנית על ידי DBA כחלק מ-bootstrap המעבדה ויקושר
+ל:</p>
+<pre class="text"><code>TASKHUB_API.PKG_TASKHUB_CONTEXT_CORE</code></pre>
+<p>ה-Context Namespace עצמו הוא אובייקט בעל הרשאה מערכתית ואינו נוצר על
+ידי Codex.</p>
+<h2 id="23-גבול-האחריות">2.3 גבול האחריות</h2>
+<pre class="text"><code>TASKHUB_APP
+    |
+    | EXECUTE / SELECT בלבד
+    v
+TASKHUB_API
+    |
+    | Object Grants מפורשים בלבד
+    v
+TASKHUB_OWNER</code></pre>
+<p>הקמת Oracle container, יצירת שלושת משתמשי ה-Database ויצירת
+<code>TASKHUB_CTX</code> מתבצעות ידנית מחוץ ל-Codex.</p>
+<p>לאחר bootstrap זה, כל מימוש האפליקציה חייב להיות ניתן לשחזור מתוך
+ה-repository בלבד.</p>
+<h1 id="3-עיקרון-האבטחה">3. עיקרון האבטחה</h1>
+<h2 id="31-app_user_id-אינו-פרמטר-של-crud">3.1 APP_USER_ID אינו פרמטר של
+CRUD</h2>
+<p>אסור להעביר <code>APP_USER_ID</code> כפרמטר לפעולות CRUD.</p>
+<p>לדוגמה, API כזה <strong>אינו מותר</strong>:</p>
+<pre class="plsql"><code>procedure delete_task (
+    p_app_user_id in number,
+    p_task_id     in number
+);</code></pre>
+<p>הסיבה היא שה-caller יכול לנסות להעביר <code>APP_USER_ID</code> של
+משתמש אחר.</p>
+<p>במקום זאת, זהות המשתמש תיקבע פעם אחת עבור ה-request באמצעות:</p>
+<pre class="text"><code>TASKHUB_CTX.APP_USER_ID
+TASKHUB_CTX.APP_USERNAME</code></pre>
+<p>וה-Package יקרא אותה באמצעות:</p>
+<div class="sourceCode" id="cb6"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sys_context</span>(<span class="st">&#39;TASKHUB_CTX&#39;</span>, <span class="st">&#39;APP_USER_ID&#39;</span>)</span></code></pre></div>
+<hr />
+<h2 id="32-למה-זה-חשוב">3.2 למה זה חשוב</h2>
+<p>ההחלטה הזו היא <strong>Security Requirement</strong>, ולא רק החלטת
+מימוש.</p>
+<p>המטרות הן:</p>
+<ol type="1">
+<li>למנוע spoofing של <code>APP_USER_ID</code>.</li>
+<li>לרכז Ownership ו-Authorization בתוך בסיס הנתונים.</li>
+<li>להשתמש באותו מקור זהות עבור ה-Package ועבור ה-Views.</li>
+<li>למנוע מצב שבו מפתח שוכח להוסיף predicate של משתמש.</li>
+<li>למנוע גישה לנתונים של משתמש אחר גם במקרה של טעות ב-APEX.</li>
+</ol>
+<hr />
+<h1 id="4-application-context-ו-identity">4. Application Context
+ו-Identity</h1>
+<p>יוגדר Context Namespace:</p>
+<pre class="text"><code>TASKHUB_CTX</code></pre>
+<p>עם attributes:</p>
+<pre class="text"><code>APP_USER_ID
+APP_USERNAME</code></pre>
+<h2 id="41-trusted-context-package">4.1 Trusted Context Package</h2>
+<p>ה-Context יהיה מקושר ל-Package פנימי:</p>
+<pre class="text"><code>TASKHUB_API.PKG_TASKHUB_CONTEXT_CORE</code></pre>
+<p>Package זה הוא ה-trusted setter של <code>TASKHUB_CTX</code> ואינו
+Granted ל-<code>TASKHUB_APP</code>.</p>
+<p>מטרתו לרכז את הפעולות שמבצעות <code>DBMS_SESSION.SET_CONTEXT</code>
+ו-<code>DBMS_SESSION.CLEAR_CONTEXT</code>.</p>
+<h2 id="42-runtime-facade-עבור-apex">4.2 Runtime Facade עבור APEX</h2>
+<p>Package:</p>
+<pre class="text"><code>TASKHUB_API.PKG_TASKHUB_CONTEXT</code></pre>
+<p>יכיל לפחות:</p>
+<pre class="plsql"><code>procedure init_from_apex;
+procedure clear_context;</code></pre>
+<p><code>INIT_FROM_APEX</code> יקרא:</p>
+<div class="sourceCode" id="cb12"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sys_context</span>(<span class="st">&#39;APEX$SESSION&#39;</span>, <span class="st">&#39;APP_USER&#39;</span>)</span></code></pre></div>
+<p>ימפה את שם המשתמש ל-<code>TASKHUB_OWNER.APP_USERS.ID</code>, יוודא
+שהמשתמש פעיל, ורק אז יאתחל את <code>TASKHUB_CTX</code> באמצעות ה-Core
+Package.</p>
+<p><code>INIT_FROM_APEX</code> חייב להתחיל ב-clear מפורש של ה-Context
+כדי למנוע שימוש ב-state שנשאר ב-session קודם.</p>
+<p>אם האתחול נכשל, ה-Context חייב להישאר ריק.</p>
+<p>בעתיד, כאשר APEX יתווסף, ה-Context יאותחל בכל APEX Request וינוקה
+בסוף ה-Request.</p>
+<h2 id="43-test-only-facade-עבור-codexmcp">4.3 Test-only Facade עבור
+Codex/MCP</h2>
+<p>במעבדת DEV בלבד יוגדר:</p>
+<pre class="text"><code>TASKHUB_API.PKG_TASKHUB_TEST_CONTEXT</code></pre>
+<p>עם:</p>
+<pre class="plsql"><code>procedure init_for_test (
+    p_username in varchar2
+);
+
+procedure clear_context;</code></pre>
+<p><code>INIT_FOR_TEST</code> נועד לאפשר בדיקות ללא APEX Session.</p>
+<p>הוא חייב:</p>
+<ol type="1">
+<li>לבצע <code>clear_context</code> לפני כל ניסיון אתחול.</li>
+<li>למצוא את המשתמש לפי <code>USERNAME</code>
+ב-<code>TASKHUB_OWNER.APP_USERS</code>.</li>
+<li>לוודא <code>IS_ACTIVE = 'Y'</code>.</li>
+<li>להגדיר <code>APP_USER_ID</code> ו-<code>APP_USERNAME</code> רק לאחר
+validation מלא.</li>
+<li>להשאיר Context ריק במקרה של כשל.</li>
+</ol>
+<p><code>TASKHUB_APP</code> לא יקבל <code>EXECUTE</code> על Package
+זה.</p>
+<p>Package זה הוא Lab/Test Artifact ואינו חלק מחבילת Production-like
+deployment, אלא אם התקבלה החלטה מפורשת אחרת.</p>
+<h2 id="44-deterministic-context-rule">4.4 Deterministic Context
+Rule</h2>
+<p>כל Test וכל פעולת MCP שמסתמכת על Identity חייבים לאתחל Context באופן
+מפורש באותו flow.</p>
+<p>אסור להסתמך על:</p>
+<ul>
+<li>Context שנשאר מהרצה קודמת.</li>
+<li>סדר הרצה של Tests.</li>
+<li>Session reuse של SQLcl או MCP.</li>
+<li>state של Connection Pool עתידי.</li>
+</ul>
+<p>אם אין Context תקף:</p>
+<ul>
+<li>פעולת CRUD חייבת להיכשל.</li>
+<li>Views חייבים להחזיר 0 שורות.</li>
+</ul>
+<h1 id="5-erd">5. ERD</h1>
+<pre class="mermaid"><code>erDiagram
+
+    APP_USERS ||--o{ TODO_LISTS : owns
+    APP_USERS ||--o{ TAGS : owns
+
+    TODO_LISTS ||--o{ TASKS : contains
+
+    TODO_LISTS ||--o{ TODO_LIST_TAGS : tagged_with
+    TAGS ||--o{ TODO_LIST_TAGS : assigned_to
+
+    TASKS ||--o{ TASKS : parent_of
+
+    APP_USERS {
+        NUMBER id PK
+        VARCHAR2 username UK
+        VARCHAR2 display_name
+        VARCHAR2 email
+        VARCHAR2 is_active
+        TIMESTAMP created_at
+        TIMESTAMP updated_at
+    }
+
+    TODO_LISTS {
+        NUMBER id PK
+        NUMBER app_user_id FK
+        VARCHAR2 list_name
+        TIMESTAMP created_at
+        NUMBER created_by_user_id FK
+        TIMESTAMP updated_at
+        NUMBER updated_by_user_id FK
+        TIMESTAMP deleted_at
+        NUMBER deleted_by_user_id FK
+    }
+
+    TAGS {
+        NUMBER id PK
+        NUMBER app_user_id FK
+        VARCHAR2 tag_name
+        TIMESTAMP created_at
+        TIMESTAMP updated_at
+        TIMESTAMP deleted_at
+        NUMBER deleted_by_user_id FK
+    }
+
+    TODO_LIST_TAGS {
+        NUMBER id PK
+        NUMBER todo_list_id FK
+        NUMBER tag_id FK
+        TIMESTAMP created_at
+    }
+
+    TASKS {
+        NUMBER id PK
+        NUMBER todo_list_id FK
+        NUMBER parent_task_id FK
+        VARCHAR2 title
+        VARCHAR2 description
+        VARCHAR2 status
+        NUMBER priority
+        TIMESTAMP due_at
+        TIMESTAMP completed_at
+        TIMESTAMP created_at
+        NUMBER created_by_user_id FK
+        TIMESTAMP updated_at
+        NUMBER updated_by_user_id FK
+        TIMESTAMP deleted_at
+        NUMBER deleted_by_user_id FK
+    }</code></pre>
+<hr />
+<h1 id="6-quick-sql---כללי-עבודה">6. Quick SQL - כללי עבודה</h1>
+<p>המודל ייווצר תחילה באמצעות <strong>Oracle APEX Quick
+SQL</strong>.</p>
+<p>Quick SQL הוא ה-source הראשוני ליצירת ה-DDL, אבל ה-DDL שנוצר חייב
+לעבור review והשלמות על ידי Codex.</p>
+<h2 id="quick-sql-settings">Quick SQL Settings</h2>
+<p>יש להגדיר ב-Quick SQL:</p>
+<pre class="text"><code>Primary Key          : Identity Column
+Primary Key Name     : ID
+Compatibility        : Oracle Database 19c
+PL/SQL API           : Off
+Date Data Type       : Timestamp
+Audit Columns        : Off</code></pre>
+<h3 id="למה-audit-columns--off">למה Audit Columns = Off?</h3>
+<p>אנחנו רוצים שה-Audit של האפליקציה יתבסס על
+<code>TASKHUB_CTX.APP_USER_ID</code>.</p>
+<p>לכן לא נשתמש ב-audit columns האוטומטיים של Quick SQL.</p>
+<p>עמודות ה-Audit שלנו מוגדרות במפורש במודל.</p>
+<h3 id="הערה-חשובה">הערה חשובה</h3>
+<p>אין צורך לכתוב <code>ID</code> ב-Quick SQL לכל טבלה.</p>
+<p>Quick SQL ייצור את ה-Primary Key <code>ID</code> אוטומטית בהתאם
+ל-setting של Identity Column.</p>
+<hr />
+<h1 id="7-table-app_users">7. Table: APP_USERS</h1>
+<h2 id="71-תפקיד">7.1 תפקיד</h2>
+<p>טבלת המשתמשים האפליקטיביים.</p>
+<p>אלה <strong>אינם Oracle Database Users</strong>.</p>
+<p>אין Login implementation בתוך בסיס הנתונים ב-POC.</p>
+<hr />
+<h2 id="72-quick-sql">7.2 Quick SQL</h2>
+<pre class="text"><code>app_users
+  username vc128 /nn /unique
+  display_name vc200
+  email vc320
+  is_active vc1 /nn /check Y,N
+  created_at timestamp /nn
+  updated_at timestamp</code></pre>
+<hr />
+<h2 id="73-משמעות-העמודות">7.3 משמעות העמודות</h2>
+<table>
+<thead>
+<tr class="header">
+<th>Column</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>ID</code></td>
+<td>Primary Key שנוצר על ידי Quick SQL</td>
+</tr>
+<tr class="even">
+<td><code>USERNAME</code></td>
+<td>שם המשתמש האפליקטיבי</td>
+</tr>
+<tr class="odd">
+<td><code>DISPLAY_NAME</code></td>
+<td>שם תצוגה</td>
+</tr>
+<tr class="even">
+<td><code>EMAIL</code></td>
+<td>Email אופציונלי</td>
+</tr>
+<tr class="odd">
+<td><code>IS_ACTIVE</code></td>
+<td><code>Y</code> או <code>N</code></td>
+</tr>
+<tr class="even">
+<td><code>CREATED_AT</code></td>
+<td>זמן יצירה</td>
+</tr>
+<tr class="odd">
+<td><code>UPDATED_AT</code></td>
+<td>זמן עדכון אחרון</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="74-כללים">7.4 כללים</h2>
+<p><code>USERNAME</code> חייב להיות unique.</p>
+<p>משתמש שאינו פעיל:</p>
+<pre class="text"><code>IS_ACTIVE = &#39;N&#39;</code></pre>
+<p>לא יקבל Context פעיל.</p>
+<p>ב-POC לא מבצעים Soft Delete ל-<code>APP_USERS</code>.</p>
+<p>Disable של משתמש נעשה באמצעות:</p>
+<pre class="text"><code>IS_ACTIVE = &#39;N&#39;</code></pre>
+<hr />
+<h1 id="8-table-todo_lists">8. Table: TODO_LISTS</h1>
+<h2 id="81-תפקיד">8.1 תפקיד</h2>
+<p>רשימת משימות.</p>
+<p>לכל משתמש יכולים להיות מספר Lists.</p>
+<hr />
+<h2 id="82-quick-sql">8.2 Quick SQL</h2>
+<pre class="text"><code>todo_lists
+  app_user_id /fk app_users /nn
+  list_name vc200 /nn
+  created_at timestamp /nn
+  created_by_user_id /fk app_users /nn
+  updated_at timestamp
+  updated_by_user_id /fk app_users
+  deleted_at timestamp
+  deleted_by_user_id /fk app_users</code></pre>
+<hr />
+<h2 id="83-משמעות-העמודות">8.3 משמעות העמודות</h2>
+<table>
+<thead>
+<tr class="header">
+<th>Column</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>ID</code></td>
+<td>Primary Key</td>
+</tr>
+<tr class="even">
+<td><code>APP_USER_ID</code></td>
+<td>Owner של הרשימה</td>
+</tr>
+<tr class="odd">
+<td><code>LIST_NAME</code></td>
+<td>שם הרשימה</td>
+</tr>
+<tr class="even">
+<td><code>CREATED_AT</code></td>
+<td>זמן יצירה</td>
+</tr>
+<tr class="odd">
+<td><code>CREATED_BY_USER_ID</code></td>
+<td>המשתמש שיצר</td>
+</tr>
+<tr class="even">
+<td><code>UPDATED_AT</code></td>
+<td>זמן עדכון</td>
+</tr>
+<tr class="odd">
+<td><code>UPDATED_BY_USER_ID</code></td>
+<td>המשתמש שביצע עדכון</td>
+</tr>
+<tr class="even">
+<td><code>DELETED_AT</code></td>
+<td>Soft Delete timestamp</td>
+</tr>
+<tr class="odd">
+<td><code>DELETED_BY_USER_ID</code></td>
+<td>מי ביצע Soft Delete</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="84-ownership">8.4 Ownership</h2>
+<p>הבעלות על List נקבעת באמצעות:</p>
+<pre class="text"><code>TODO_LISTS.APP_USER_ID</code></pre>
+<p><code>PKG_TASKHUB_API</code> חייב לוודא בכל פעולה:</p>
+<pre class="text"><code>TODO_LISTS.APP_USER_ID =
+TASKHUB_CTX.APP_USER_ID</code></pre>
+<hr />
+<h1 id="9-table-tags">9. Table: TAGS</h1>
+<h2 id="91-תפקיד">9.1 תפקיד</h2>
+<p>Tags של משתמש.</p>
+<p>לדוגמה:</p>
+<pre class="text"><code>Work
+Personal
+Shopping
+Database
+Urgent</code></pre>
+<p>אותו Tag יכול להיות משויך למספר Lists.</p>
+<hr />
+<h2 id="92-quick-sql">9.2 Quick SQL</h2>
+<pre class="text"><code>tags
+  app_user_id /fk app_users /nn
+  tag_name vc100 /nn
+  created_at timestamp /nn
+  created_by_user_id /fk app_users /nn
+  updated_at timestamp
+  updated_by_user_id /fk app_users
+  deleted_at timestamp
+  deleted_by_user_id /fk app_users</code></pre>
+<hr />
+<h2 id="93-unique-rule">9.3 Unique Rule</h2>
+<p>נדרש uniqueness ל-Tag פעיל אצל אותו משתמש.</p>
+<p>לוגית:</p>
+<pre class="text"><code>APP_USER_ID + normalized TAG_NAME</code></pre>
+<p>ההשוואה תהיה Case Insensitive ותתעלם מרווחים בתחילת ובסוף השם.</p>
+<p>מכיוון ש-<code>TAGS</code> תומכת ב-Soft Delete, Tag שנמחק לא יחסום
+יצירה מחדש של אותו שם.</p>
+<p>לאחר יצירת ה-DDL באמצעות Quick SQL, Codex ייצור Function-based Unique
+Index עבור rows פעילים בלבד, לדוגמה:</p>
+<div class="sourceCode" id="cb26"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a><span class="kw">create</span> <span class="kw">unique</span> <span class="kw">index</span> tags_uq1</span>
+<span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">on</span> tags (</span>
+<span id="cb26-3"><a href="#cb26-3" aria-hidden="true" tabindex="-1"></a>        <span class="cf">case</span> <span class="cf">when</span> deleted_at <span class="kw">is</span> <span class="kw">null</span> <span class="cf">then</span> app_user_id <span class="cf">end</span>,</span>
+<span id="cb26-4"><a href="#cb26-4" aria-hidden="true" tabindex="-1"></a>        <span class="cf">case</span> <span class="cf">when</span> deleted_at <span class="kw">is</span> <span class="kw">null</span> <span class="cf">then</span> <span class="fu">upper</span>(<span class="fu">trim</span>(tag_name)) <span class="cf">end</span></span>
+<span id="cb26-5"><a href="#cb26-5" aria-hidden="true" tabindex="-1"></a>    );</span></code></pre></div>
+<p>ה-Index הסופי חייב לעבור review מול גרסת Oracle שבה רצה המעבדה.</p>
+<h1 id="10-table-todo_list_tags">10. Table: TODO_LIST_TAGS</h1>
+<h2 id="101-תפקיד">10.1 תפקיד</h2>
+<p>טבלת Many-to-Many בין:</p>
+<pre class="text"><code>TODO_LISTS</code></pre>
+<p>לבין:</p>
+<pre class="text"><code>TAGS</code></pre>
+<hr />
+<h2 id="102-quick-sql">10.2 Quick SQL</h2>
+<pre class="text"><code>todo_list_tags
+  todo_list_id /fk todo_lists /nn
+  tag_id /fk tags /nn
+  created_at timestamp /nn</code></pre>
+<hr />
+<h2 id="103-unique-rule">10.3 Unique Rule</h2>
+<p>אסור לשייך את אותו Tag לאותה List יותר מפעם אחת.</p>
+<p>לאחר Quick SQL יש להוסיף:</p>
+<div class="sourceCode" id="cb30"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a><span class="kw">alter</span> <span class="kw">table</span> todo_list_tags</span>
+<span id="cb30-2"><a href="#cb30-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">add</span> <span class="kw">constraint</span> todo_list_tags_uq1</span>
+<span id="cb30-3"><a href="#cb30-3" aria-hidden="true" tabindex="-1"></a>    <span class="kw">unique</span> (todo_list_id, tag_id);</span></code></pre></div>
+<hr />
+<h2 id="104-security-rule">10.4 Security Rule</h2>
+<p>ה-Package חייב לוודא:</p>
+<pre class="text"><code>TODO_LISTS.APP_USER_ID = TAGS.APP_USER_ID</code></pre>
+<p>וכן:</p>
+<pre class="text"><code>APP_USER_ID = TASKHUB_CTX.APP_USER_ID</code></pre>
+<p>כלומר משתמש לא יכול לצרף Tag שלו ל-List של משתמש אחר, או להפך.</p>
+<hr />
+<h1 id="11-table-tasks">11. Table: TASKS</h1>
+<h2 id="111-תפקיד">11.1 תפקיד</h2>
+<p>אותה טבלה משמשת גם ל:</p>
+<pre class="text"><code>Task
+Subtask</code></pre>
+<p>אין טבלת <code>SUBTASKS</code> נפרדת.</p>
+<hr />
+<h2 id="112-quick-sql">11.2 Quick SQL</h2>
+<pre class="text"><code>tasks
+  todo_list_id /fk todo_lists /nn
+  parent_task_id /fk tasks
+  title vc200 /nn
+  description vc4000
+  status vc20 /nn /check OPEN,IN_PROGRESS,DONE,CANCELED
+  priority num /nn /check 1,2,3
+  due_at timestamp
+  completed_at timestamp
+  created_at timestamp /nn
+  created_by_user_id /fk app_users /nn
+  updated_at timestamp
+  updated_by_user_id /fk app_users
+  deleted_at timestamp
+  deleted_by_user_id /fk app_users</code></pre>
+<hr />
+<h2 id="113-task-מול-subtask">11.3 Task מול Subtask</h2>
+<p>Task ראשי:</p>
+<pre class="text"><code>PARENT_TASK_ID IS NULL</code></pre>
+<p>Subtask:</p>
+<pre class="text"><code>PARENT_TASK_ID = TASKS.ID</code></pre>
+<hr />
+<h2 id="114-עומק-מקסימלי">11.4 עומק מקסימלי</h2>
+<p>העומק המותר:</p>
+<pre class="text"><code>Task                     Level 0
+|
++-- Subtask              Level 1
+    |
+    +-- Subtask          Level 2
+        |
+        +-- Subtask      Level 3</code></pre>
+<p>ניסיון ליצור:</p>
+<pre class="text"><code>Level 4</code></pre>
+<p>חייב להיכשל.</p>
+<hr />
+<h2 id="115-בדיקות-parent">11.5 בדיקות Parent</h2>
+<p>כאשר מתקבל <code>P_PARENT_TASK_ID</code>, ה-Package חייב לוודא:</p>
+<ol type="1">
+<li>ה-Parent קיים.</li>
+<li>ה-Parent אינו Soft Deleted.</li>
+<li>ה-Parent שייך לאותו <code>TODO_LIST_ID</code>.</li>
+<li>הרשימה שייכת ל-<code>TASKHUB_CTX.APP_USER_ID</code>.</li>
+<li>הפעולה אינה יוצרת Cycle.</li>
+<li>העומק החדש אינו גדול מ-3.</li>
+</ol>
+<hr />
+<h1 id="12-task-status">12. Task Status</h1>
+<p>ערכים מותרים:</p>
+<pre class="text"><code>OPEN
+IN_PROGRESS
+DONE
+CANCELED</code></pre>
+<p>כאשר Status הופך ל:</p>
+<pre class="text"><code>DONE</code></pre>
+<p>יש לקבוע:</p>
+<pre class="text"><code>COMPLETED_AT = SYSTIMESTAMP</code></pre>
+<p>אם <code>COMPLETED_AT</code> עדיין <code>NULL</code>.</p>
+<p>אם Task משתנה מ-<code>DONE</code> לסטטוס אחר:</p>
+<pre class="text"><code>COMPLETED_AT = NULL</code></pre>
+<hr />
+<h1 id="13-priority">13. Priority</h1>
+<p>ה-Priority נשמר כ-Number.</p>
+<pre class="text"><code>1 = HIGH
+2 = MEDIUM
+3 = LOW</code></pre>
+<p>המטרה היא לאפשר:</p>
+<div class="sourceCode" id="cb44"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb44-1"><a href="#cb44-1" aria-hidden="true" tabindex="-1"></a><span class="kw">order</span> <span class="kw">by</span> priority <span class="kw">asc</span></span></code></pre></div>
+<p>ולקבל:</p>
+<pre class="text"><code>HIGH
+MEDIUM
+LOW</code></pre>
+<hr />
+<h1 id="14-audit">14. Audit</h1>
+<p>ה-Audit האפליקטיבי נקבע מתוך <code>TASKHUB_CTX</code> ואינו מתקבל
+מה-caller.</p>
+<h2 id="141-todo_lists-tags-tasks">14.1 TODO_LISTS, TAGS, TASKS</h2>
+<p>שלוש הטבלאות המשתנות על ידי המשתמש האפליקטיבי יכילו:</p>
+<pre class="text"><code>CREATED_AT
+CREATED_BY_USER_ID
+UPDATED_AT
+UPDATED_BY_USER_ID
+DELETED_AT
+DELETED_BY_USER_ID</code></pre>
+<p>הערכים של <code>*_BY_USER_ID</code> ייקבעו מתוך:</p>
+<div class="sourceCode" id="cb47"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb47-1"><a href="#cb47-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sys_context</span>(<span class="st">&#39;TASKHUB_CTX&#39;</span>, <span class="st">&#39;APP_USER_ID&#39;</span>)</span></code></pre></div>
+<h2 id="142-app_users">14.2 APP_USERS</h2>
+<p><code>APP_USERS</code> היא טבלת זהויות אפליקטיביות ולא חלק מ-CRUD
+המשתמש הרגיל ב-POC.</p>
+<p>לכן היא כוללת בשלב זה:</p>
+<pre class="text"><code>CREATED_AT
+UPDATED_AT</code></pre>
+<p>ולא <code>*_BY_USER_ID</code>.</p>
+<h2 id="143-todo_list_tags">14.3 TODO_LIST_TAGS</h2>
+<p>Association row כולל בשלב ה-POC:</p>
+<pre class="text"><code>CREATED_AT</code></pre>
+<p>ה-POC אינו דורש Audit מלא ברמת Association נפרד, משום שכל שינוי מתבצע
+דרך API מאובטח ובעלות ה-List וה-Tag נבדקת מול אותו Application User.</p>
+<h1 id="15-views">15. Views</h1>
+<p>ה-Application Schema לא יקבל <code>SELECT</code> ישירות על
+Tables.</p>
+<p>ה-Views יהיו בבעלות:</p>
+<pre class="text"><code>TASKHUB_API</code></pre>
+<p>ויוגדרו לפחות:</p>
+<pre class="text"><code>V_TODO_LISTS
+V_TODO_LIST_TAGS
+V_TASKS
+V_TASK_TREE</code></pre>
+<p>כל View יהיה:</p>
+<pre class="text"><code>WITH READ ONLY</code></pre>
+<p><code>TASKHUB_OWNER</code> יעניק ל-<code>TASKHUB_API</code>
+<code>SELECT</code> מפורש על הטבלאות הנדרשות ל-Views.</p>
+<p>כל View ב-<code>TASKHUB_API</code> יפנה לטבלאות באמצעות שמות מלאים,
+לדוגמה:</p>
+<pre class="text"><code>TASKHUB_OWNER.TASKS
+TASKHUB_OWNER.TODO_LISTS</code></pre>
+<p>אין להסתמך על Synonyms לצורך ה-Security Boundary של ה-POC.</p>
+<p><code>TASKHUB_APP</code> יקבל <code>SELECT</code> רק על ה-Views
+האלו.</p>
+<h1 id="16-v_todo_lists">16. V_TODO_LISTS</h1>
+<p>ה-View יחזיר רק Lists של המשתמש הנוכחי.</p>
+<p>לוגיקה עקרונית:</p>
+<div class="sourceCode" id="cb54"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb54-1"><a href="#cb54-1" aria-hidden="true" tabindex="-1"></a><span class="kw">select</span> l.<span class="op">*</span></span>
+<span id="cb54-2"><a href="#cb54-2" aria-hidden="true" tabindex="-1"></a><span class="kw">from</span> taskhub_owner.todo_lists l</span>
+<span id="cb54-3"><a href="#cb54-3" aria-hidden="true" tabindex="-1"></a><span class="kw">where</span> l.app_user_id <span class="op">=</span></span>
+<span id="cb54-4"><a href="#cb54-4" aria-hidden="true" tabindex="-1"></a>      <span class="fu">to_number</span>(</span>
+<span id="cb54-5"><a href="#cb54-5" aria-hidden="true" tabindex="-1"></a>          <span class="fu">sys_context</span>(</span>
+<span id="cb54-6"><a href="#cb54-6" aria-hidden="true" tabindex="-1"></a>              <span class="st">&#39;TASKHUB_CTX&#39;</span>,</span>
+<span id="cb54-7"><a href="#cb54-7" aria-hidden="true" tabindex="-1"></a>              <span class="st">&#39;APP_USER_ID&#39;</span></span>
+<span id="cb54-8"><a href="#cb54-8" aria-hidden="true" tabindex="-1"></a>          )</span>
+<span id="cb54-9"><a href="#cb54-9" aria-hidden="true" tabindex="-1"></a>      )</span>
+<span id="cb54-10"><a href="#cb54-10" aria-hidden="true" tabindex="-1"></a>  <span class="kw">and</span> l.deleted_at <span class="kw">is</span> <span class="kw">null</span></span>
+<span id="cb54-11"><a href="#cb54-11" aria-hidden="true" tabindex="-1"></a><span class="kw">with</span> <span class="kw">read</span> <span class="kw">only</span>;</span></code></pre></div>
+<h2 id="161-v_todo_list_tags">16.1 V_TODO_LIST_TAGS</h2>
+<p>ה-View יחזיר רק Associations שבהם:</p>
+<ul>
+<li>ה-List שייך למשתמש הנוכחי ואינו Soft Deleted.</li>
+<li>ה-Tag שייך לאותו משתמש ואינו Soft Deleted.</li>
+<li>ה-Association עצמו קיים.</li>
+</ul>
+<p>הלוגיקה חייבת לבדוק גם התאמה בין Owner של ה-List ל-Owner של ה-Tag, גם
+אם ה-API כבר מונע Association שגוי.</p>
+<h1 id="17-v_tasks">17. V_TASKS</h1>
+<p>ל-<code>TASKS</code> אין <code>APP_USER_ID</code> ישיר.</p>
+<p>ה-Ownership נגזר דרך:</p>
+<pre class="text"><code>TASKS.TODO_LIST_ID
+        |
+        v
+TODO_LISTS.APP_USER_ID</code></pre>
+<p>עקרון ה-View:</p>
+<div class="sourceCode" id="cb56"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb56-1"><a href="#cb56-1" aria-hidden="true" tabindex="-1"></a><span class="kw">select</span> t.<span class="op">*</span></span>
+<span id="cb56-2"><a href="#cb56-2" aria-hidden="true" tabindex="-1"></a><span class="kw">from</span> taskhub_owner.tasks t</span>
+<span id="cb56-3"><a href="#cb56-3" aria-hidden="true" tabindex="-1"></a><span class="kw">join</span> taskhub_owner.todo_lists l</span>
+<span id="cb56-4"><a href="#cb56-4" aria-hidden="true" tabindex="-1"></a>  <span class="kw">on</span> l.<span class="kw">id</span> <span class="op">=</span> t.todo_list_id</span>
+<span id="cb56-5"><a href="#cb56-5" aria-hidden="true" tabindex="-1"></a><span class="kw">where</span> l.app_user_id <span class="op">=</span></span>
+<span id="cb56-6"><a href="#cb56-6" aria-hidden="true" tabindex="-1"></a>      <span class="fu">to_number</span>(</span>
+<span id="cb56-7"><a href="#cb56-7" aria-hidden="true" tabindex="-1"></a>          <span class="fu">sys_context</span>(</span>
+<span id="cb56-8"><a href="#cb56-8" aria-hidden="true" tabindex="-1"></a>              <span class="st">&#39;TASKHUB_CTX&#39;</span>,</span>
+<span id="cb56-9"><a href="#cb56-9" aria-hidden="true" tabindex="-1"></a>              <span class="st">&#39;APP_USER_ID&#39;</span></span>
+<span id="cb56-10"><a href="#cb56-10" aria-hidden="true" tabindex="-1"></a>          )</span>
+<span id="cb56-11"><a href="#cb56-11" aria-hidden="true" tabindex="-1"></a>      )</span>
+<span id="cb56-12"><a href="#cb56-12" aria-hidden="true" tabindex="-1"></a>  <span class="kw">and</span> l.deleted_at <span class="kw">is</span> <span class="kw">null</span></span>
+<span id="cb56-13"><a href="#cb56-13" aria-hidden="true" tabindex="-1"></a>  <span class="kw">and</span> t.deleted_at <span class="kw">is</span> <span class="kw">null</span></span>
+<span id="cb56-14"><a href="#cb56-14" aria-hidden="true" tabindex="-1"></a><span class="kw">with</span> <span class="kw">read</span> <span class="kw">only</span>;</span></code></pre></div>
+<h1 id="18-v_task_tree">18. V_TASK_TREE</h1>
+<p><code>V_TASK_TREE</code> יספק תצוגה היררכית של Tasks.</p>
+<p>הוא יכיל לפחות:</p>
+<pre class="text"><code>TASK_ID
+TODO_LIST_ID
+PARENT_TASK_ID
+TITLE
+STATUS
+PRIORITY
+TASK_DEPTH</code></pre>
+<p>כאשר:</p>
+<pre class="text"><code>TASK_DEPTH = 0..3</code></pre>
+<p>ניתן לממש באמצעות Oracle hierarchical query:</p>
+<pre class="text"><code>START WITH
+CONNECT BY</code></pre>
+<p>או recursive subquery factoring אם Codex יעדיף.</p>
+<h1 id="19-למה-לא-sql-macro-בשלב-הזה">19. למה לא SQL Macro בשלב הזה</h1>
+<p>SQL Macro אינו ה-Security Boundary של ה-POC.</p>
+<p>ה-Security Boundary יהיה:</p>
+<pre class="text"><code>Application Context
+        +
+AUTHID DEFINER Package
+        +
+Filtered Read-Only Views</code></pre>
+<p>הסיבה היא שה-caller לא צריך לזכור לקרוא Macro מסוים כדי לקבל Security
+Filtering.</p>
+<hr />
+<h1 id="20-pkg_taskhub_api">20. PKG_TASKHUB_API</h1>
+<p>ה-Package יהיה:</p>
+<pre class="text"><code>TASKHUB_API.PKG_TASKHUB_API</code></pre>
+<p>עם:</p>
+<pre class="plsql"><code>AUTHID DEFINER</code></pre>
+<hr />
+<h2 id="201-list-api">20.1 List API</h2>
+<p>מינימום:</p>
+<pre class="plsql"><code>function create_list (
+    p_list_name in varchar2
+) return number;</code></pre>
+<pre class="plsql"><code>procedure update_list (
+    p_list_id   in number,
+    p_list_name in varchar2
+);</code></pre>
+<pre class="plsql"><code>procedure delete_list (
+    p_list_id in number
+);</code></pre>
+<hr />
+<h2 id="202-tag-api">20.2 Tag API</h2>
+<pre class="plsql"><code>procedure add_tag_to_list (
+    p_list_id  in number,
+    p_tag_name in varchar2
+);</code></pre>
+<pre class="plsql"><code>procedure remove_tag_from_list (
+    p_list_id  in number,
+    p_tag_name in varchar2
+);</code></pre>
+<pre class="plsql"><code>procedure delete_tag (
+    p_tag_id in number
+);</code></pre>
+<p>אם Tag אינו קיים אצל המשתמש, <code>ADD_TAG_TO_LIST</code> יכול ליצור
+אותו.</p>
+<p><code>REMOVE_TAG_FROM_LIST</code> מסיר את ה-Association
+ב-<code>TODO_LIST_TAGS</code>. מאחר של-Association אין Soft Delete בשלב
+ה-POC, ההסרה יכולה להיות Physical Delete של row הקישור בלבד.</p>
+<p><code>DELETE_TAG</code> מבצע Soft Delete ל-Tag עצמו לאחר Ownership
+check. Associations קיימים יכולים להישאר עד Purge, אך אינם מוצגים
+ב-Views כאשר ה-Tag Soft Deleted.</p>
+<h2 id="203-task-api">20.3 Task API</h2>
+<pre class="plsql"><code>function create_task (
+    p_list_id        in number,
+    p_parent_task_id in number default null,
+    p_title          in varchar2,
+    p_description    in varchar2 default null,
+    p_status         in varchar2 default &#39;OPEN&#39;,
+    p_priority       in pls_integer default 2,
+    p_due_at         in timestamp default null
+) return number;</code></pre>
+<pre class="plsql"><code>procedure update_task (
+    p_task_id        in number,
+    p_parent_task_id in number,
+    p_title          in varchar2,
+    p_description    in varchar2,
+    p_status         in varchar2,
+    p_priority       in pls_integer,
+    p_due_at         in timestamp
+);</code></pre>
+<pre class="plsql"><code>procedure delete_task (
+    p_task_id in number
+);</code></pre>
+<hr />
+<h1 id="21-package-security-contract">21. Package Security Contract</h1>
+<p>זהו חלק מחייב מה-SPEC.</p>
+<p><code>PKG_TASKHUB_API</code> חייב:</p>
+<ol type="1">
+<li>לקרוא את <code>APP_USER_ID</code> מתוך
+<code>TASKHUB_CTX</code>.</li>
+<li>להיכשל אם אין Context תקף.</li>
+<li>לא לקבל <code>APP_USER_ID</code> כפרמטר.</li>
+<li>לבדוק Ownership לפני כל פעולה.</li>
+<li>לא לחשוף אם ID של משתמש אחר קיים.</li>
+<li>להשתמש ב-error כללי עבור:
+<ul>
+<li>ID לא קיים.</li>
+<li>ID קיים אך שייך למשתמש אחר.</li>
+</ul></li>
+<li>לבצע DML רק על rows של המשתמש הנוכחי.</li>
+<li>לא לבצע <code>COMMIT</code>.</li>
+<li>לא לבצע <code>ROLLBACK</code>.</li>
+<li>להפנות לטבלאות של ה-Data Owner באמצעות שמות מלאים כגון
+<code>TASKHUB_OWNER.TASKS</code>, ולא להסתמך על Synonyms.</li>
+</ol>
+<p>Transaction control יהיה באחריות ה-caller.</p>
+<hr />
+<h1 id="22-soft-delete">22. Soft Delete</h1>
+<p>Soft Delete יחול ב-POC על:</p>
+<pre class="text"><code>TODO_LISTS
+TASKS
+TAGS</code></pre>
+<p>Soft Delete מתבצע באמצעות:</p>
+<pre class="text"><code>DELETED_AT
+DELETED_BY_USER_ID</code></pre>
+<p>לדוגמה:</p>
+<div class="sourceCode" id="cb74"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb74-1"><a href="#cb74-1" aria-hidden="true" tabindex="-1"></a>deleted_at <span class="op">=</span> <span class="fu">systimestamp</span></span></code></pre></div>
+<p>והמשתמש יילקח מ:</p>
+<div class="sourceCode" id="cb75"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb75-1"><a href="#cb75-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sys_context</span>(<span class="st">&#39;TASKHUB_CTX&#39;</span>, <span class="st">&#39;APP_USER_ID&#39;</span>)</span></code></pre></div>
+<h2 id="221-association-rows">22.1 Association Rows</h2>
+<p><code>TODO_LIST_TAGS</code> לא תבצע Soft Delete עצמאי בשלב ה-POC.</p>
+<p>אם List או Tag מסומנים כמחוקים:</p>
+<ul>
+<li><code>V_TODO_LIST_TAGS</code> לא יחזיר את ה-association.</li>
+<li>ה-row ב-<code>TODO_LIST_TAGS</code> יכול להישאר עד Physical
+Purge.</li>
+</ul>
+<p>ב-Purge יש למחוק Association Rows לפני מחיקת ה-parent rows שאליהם הם
+מפנים.</p>
+<h1 id="23-delete-list">23. Delete List</h1>
+<p><code>DELETE_LIST</code> לא יבצע Physical Delete.</p>
+<p>הוא יסמן Soft Delete על:</p>
+<pre class="text"><code>TODO_LISTS</code></pre>
+<p>ועל כל Tasks הפעילים תחת הרשימה.</p>
+<p>Associations ב-<code>TODO_LIST_TAGS</code> אינם צריכים להופיע ב-Views
+כאשר ה-List נמחק.</p>
+<hr />
+<h1 id="24-delete-task">24. Delete Task</h1>
+<p><code>DELETE_TASK</code> יבצע Soft Delete ל:</p>
+<pre class="text"><code>Task
++
+all descendants</code></pre>
+<p>כלומר אם נמחק Task אב, גם כל ה-Subtasks תחתיו יסומנו כמחוקים.</p>
+<hr />
+<h1 id="25-monthly-purge">25. Monthly Purge</h1>
+<p>יוגדר Package:</p>
+<pre class="text"><code>TASKHUB_API.PKG_TASKHUB_MAINT</code></pre>
+<p>עם procedure:</p>
+<pre class="plsql"><code>procedure purge_deleted;</code></pre>
+<p>ויוגדר Job בבעלות <code>TASKHUB_API</code>:</p>
+<pre class="text"><code>JOB_TASKHUB_PURGE_MONTHLY</code></pre>
+<p>באמצעות:</p>
+<pre class="text"><code>DBMS_SCHEDULER</code></pre>
+<h2 id="251-retention">25.1 Retention</h2>
+<p>Physical Delete מותר רק כאשר:</p>
+<div class="sourceCode" id="cb82"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb82-1"><a href="#cb82-1" aria-hidden="true" tabindex="-1"></a>deleted_at <span class="op">&lt;</span></span>
+<span id="cb82-2"><a href="#cb82-2" aria-hidden="true" tabindex="-1"></a>    <span class="fu">systimestamp</span> <span class="op">-</span> <span class="dt">interval</span> <span class="st">&#39;30&#39;</span> <span class="dt">day</span></span></code></pre></div>
+<p>כלומר הנתונים יישמרו לפחות 30 יום.</p>
+<p>מכיוון שה-Job רץ אחת לחודש, בפועל נתונים מסוימים עשויים להישמר יותר
+מ-30 יום.</p>
+<h2 id="252-purge-order">25.2 Purge Order</h2>
+<p>ה-Purge חייב לכבד את יחסי ה-FK וה-self-FK.</p>
+<p>סדר עקרוני:</p>
+<ol type="1">
+<li>להסיר <code>TODO_LIST_TAGS</code> שמצביעים על List או Tag שמותר
+למחוק פיזית.</li>
+<li>למחוק Tasks צאצאים לפני Tasks הורים, או להשתמש באלגוריתם שמבטיח שאין
+הפרת self-FK.</li>
+<li>למחוק Tasks השייכים ל-Lists שמותר למחוק.</li>
+<li>למחוק Lists שמותר למחוק.</li>
+<li>למחוק Tags שמותר למחוק ושאין להם Associations שנותרו.</li>
+</ol>
+<p>Codex חייב להוכיח את סדר ה-Purge באמצעות Positive ו-Negative Tests
+לפני שה-Job נחשב מוכן.</p>
+<h1 id="26-indexes">26. Indexes</h1>
+<p>לאחר יצירת ה-DDL מ-Quick SQL יש להוסיף לפחות:</p>
+<div class="sourceCode" id="cb83"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb83-1"><a href="#cb83-1" aria-hidden="true" tabindex="-1"></a><span class="kw">create</span> <span class="kw">index</span> todo_lists_ix1</span>
+<span id="cb83-2"><a href="#cb83-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">on</span> todo_lists (</span>
+<span id="cb83-3"><a href="#cb83-3" aria-hidden="true" tabindex="-1"></a>        app_user_id,</span>
+<span id="cb83-4"><a href="#cb83-4" aria-hidden="true" tabindex="-1"></a>        deleted_at</span>
+<span id="cb83-5"><a href="#cb83-5" aria-hidden="true" tabindex="-1"></a>    );</span></code></pre></div>
+<div class="sourceCode" id="cb84"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb84-1"><a href="#cb84-1" aria-hidden="true" tabindex="-1"></a><span class="kw">create</span> <span class="kw">index</span> tasks_ix1</span>
+<span id="cb84-2"><a href="#cb84-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">on</span> tasks (</span>
+<span id="cb84-3"><a href="#cb84-3" aria-hidden="true" tabindex="-1"></a>        todo_list_id,</span>
+<span id="cb84-4"><a href="#cb84-4" aria-hidden="true" tabindex="-1"></a>        deleted_at</span>
+<span id="cb84-5"><a href="#cb84-5" aria-hidden="true" tabindex="-1"></a>    );</span></code></pre></div>
+<div class="sourceCode" id="cb85"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb85-1"><a href="#cb85-1" aria-hidden="true" tabindex="-1"></a><span class="kw">create</span> <span class="kw">index</span> tasks_ix2</span>
+<span id="cb85-2"><a href="#cb85-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">on</span> tasks (</span>
+<span id="cb85-3"><a href="#cb85-3" aria-hidden="true" tabindex="-1"></a>        parent_task_id</span>
+<span id="cb85-4"><a href="#cb85-4" aria-hidden="true" tabindex="-1"></a>    );</span></code></pre></div>
+<div class="sourceCode" id="cb86"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb86-1"><a href="#cb86-1" aria-hidden="true" tabindex="-1"></a><span class="kw">create</span> <span class="kw">index</span> tasks_ix3</span>
+<span id="cb86-2"><a href="#cb86-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">on</span> tasks (</span>
+<span id="cb86-3"><a href="#cb86-3" aria-hidden="true" tabindex="-1"></a>        status,</span>
+<span id="cb86-4"><a href="#cb86-4" aria-hidden="true" tabindex="-1"></a>        priority,</span>
+<span id="cb86-5"><a href="#cb86-5" aria-hidden="true" tabindex="-1"></a>        due_at</span>
+<span id="cb86-6"><a href="#cb86-6" aria-hidden="true" tabindex="-1"></a>    );</span></code></pre></div>
+<div class="sourceCode" id="cb87"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb87-1"><a href="#cb87-1" aria-hidden="true" tabindex="-1"></a><span class="kw">create</span> <span class="kw">unique</span> <span class="kw">index</span> tags_uq1</span>
+<span id="cb87-2"><a href="#cb87-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">on</span> tags (</span>
+<span id="cb87-3"><a href="#cb87-3" aria-hidden="true" tabindex="-1"></a>        <span class="cf">case</span> <span class="cf">when</span> deleted_at <span class="kw">is</span> <span class="kw">null</span> <span class="cf">then</span> app_user_id <span class="cf">end</span>,</span>
+<span id="cb87-4"><a href="#cb87-4" aria-hidden="true" tabindex="-1"></a>        <span class="cf">case</span> <span class="cf">when</span> deleted_at <span class="kw">is</span> <span class="kw">null</span> <span class="cf">then</span> <span class="fu">upper</span>(<span class="fu">trim</span>(tag_name)) <span class="cf">end</span></span>
+<span id="cb87-5"><a href="#cb87-5" aria-hidden="true" tabindex="-1"></a>    );</span></code></pre></div>
+<p>ה-Unique Constraint על:</p>
+<pre class="text"><code>TODO_LIST_TAGS(TODO_LIST_ID, TAG_ID)</code></pre>
+<p>מכסה גישה לפי <code>TODO_LIST_ID</code> כעמודה מובילה.</p>
+<p>Codex חייב לבדוק האם נדרש גם Index נפרד על:</p>
+<pre class="text"><code>TODO_LIST_TAGS(TAG_ID)</code></pre>
+<p>בהתאם ל-Queries ול-Purge שנממש. אין להוסיף Index רק מתוך הרגל ללא
+Query שמצדיק אותו.</p>
+<p>כל Index חייב להיות מתועד עם ה-Query או ה-Constraint שהוא משרת.</p>
+<h1 id="27-grants">27. Grants</h1>
+<p>ההרשאות הן חלק מ-Security Contract מחייב.</p>
+<h2 id="271-grants-מ-taskhub_owner-ל-taskhub_api">27.1 Grants
+מ-<code>TASKHUB_OWNER</code> ל-<code>TASKHUB_API</code></h2>
+<p><code>TASKHUB_API</code> יקבל Object Grants ישירים בלבד, משום
+ש-Definer-rights PL/SQL ו-Views חייבים להסתמך על הרשאות מפורשות ולא על
+Roles.</p>
+<p>לכל הפחות:</p>
+<pre class="text"><code>APP_USERS       : SELECT
+TODO_LISTS      : SELECT, INSERT, UPDATE, DELETE
+TAGS            : SELECT, INSERT, UPDATE, DELETE
+TODO_LIST_TAGS  : SELECT, INSERT, UPDATE, DELETE
+TASKS           : SELECT, INSERT, UPDATE, DELETE</code></pre>
+<p>אין לתת <code>WITH GRANT OPTION</code>.</p>
+<p>אין לתת Privileges מסוג <code>ANY</code>.</p>
+<h2 id="272-grants-מ-taskhub_api-ל-taskhub_app">27.2 Grants
+מ-<code>TASKHUB_API</code> ל-<code>TASKHUB_APP</code></h2>
+<p><code>TASKHUB_APP</code> יקבל:</p>
+<div class="sourceCode" id="cb91"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb91-1"><a href="#cb91-1" aria-hidden="true" tabindex="-1"></a><span class="kw">grant</span> <span class="kw">execute</span></span>
+<span id="cb91-2"><a href="#cb91-2" aria-hidden="true" tabindex="-1"></a><span class="kw">on</span> taskhub_api.pkg_taskhub_context</span>
+<span id="cb91-3"><a href="#cb91-3" aria-hidden="true" tabindex="-1"></a> <span class="kw">to</span> taskhub_app;</span></code></pre></div>
+<div class="sourceCode" id="cb92"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb92-1"><a href="#cb92-1" aria-hidden="true" tabindex="-1"></a><span class="kw">grant</span> <span class="kw">execute</span></span>
+<span id="cb92-2"><a href="#cb92-2" aria-hidden="true" tabindex="-1"></a><span class="kw">on</span> taskhub_api.pkg_taskhub_api</span>
+<span id="cb92-3"><a href="#cb92-3" aria-hidden="true" tabindex="-1"></a> <span class="kw">to</span> taskhub_app;</span></code></pre></div>
+<div class="sourceCode" id="cb93"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb93-1"><a href="#cb93-1" aria-hidden="true" tabindex="-1"></a><span class="kw">grant</span> <span class="kw">select</span> <span class="kw">on</span> taskhub_api.v_todo_lists     <span class="kw">to</span> taskhub_app;</span>
+<span id="cb93-2"><a href="#cb93-2" aria-hidden="true" tabindex="-1"></a><span class="kw">grant</span> <span class="kw">select</span> <span class="kw">on</span> taskhub_api.v_todo_list_tags <span class="kw">to</span> taskhub_app;</span>
+<span id="cb93-3"><a href="#cb93-3" aria-hidden="true" tabindex="-1"></a><span class="kw">grant</span> <span class="kw">select</span> <span class="kw">on</span> taskhub_api.v_tasks          <span class="kw">to</span> taskhub_app;</span>
+<span id="cb93-4"><a href="#cb93-4" aria-hidden="true" tabindex="-1"></a><span class="kw">grant</span> <span class="kw">select</span> <span class="kw">on</span> taskhub_api.v_task_tree      <span class="kw">to</span> taskhub_app;</span></code></pre></div>
+<p><code>TASKHUB_APP</code> לא יקבל <code>EXECUTE</code> על:</p>
+<pre class="text"><code>PKG_TASKHUB_CONTEXT_CORE
+PKG_TASKHUB_TEST_CONTEXT
+PKG_TASKHUB_MAINT</code></pre>
+<p>אסור לבצע Grant ישיר מ-<code>TASKHUB_OWNER</code>
+ל-<code>TASKHUB_APP</code> על Tables.</p>
+<p>דוגמאות אסורות:</p>
+<div class="sourceCode" id="cb95"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb95-1"><a href="#cb95-1" aria-hidden="true" tabindex="-1"></a><span class="kw">grant</span> <span class="kw">select</span> <span class="kw">on</span> taskhub_owner.tasks <span class="kw">to</span> taskhub_app;</span></code></pre></div>
+<div class="sourceCode" id="cb96"><pre
+class="sourceCode sql"><code class="sourceCode sql"><span id="cb96-1"><a href="#cb96-1" aria-hidden="true" tabindex="-1"></a><span class="kw">grant</span> <span class="kw">insert</span>, <span class="kw">update</span>, <span class="kw">delete</span></span>
+<span id="cb96-2"><a href="#cb96-2" aria-hidden="true" tabindex="-1"></a><span class="kw">on</span> taskhub_owner.tasks</span>
+<span id="cb96-3"><a href="#cb96-3" aria-hidden="true" tabindex="-1"></a> <span class="kw">to</span> taskhub_app;</span></code></pre></div>
+<h1 id="28-full-quick-sql-model">28. Full Quick SQL Model</h1>
+<p>הבלוק הבא הוא ה-Quick SQL המלא שניתן לתת ל-Codex או להדביק ב-APEX
+Quick SQL.</p>
+<pre class="text"><code>app_users
+  username vc128 /nn /unique
+  display_name vc200
+  email vc320
+  is_active vc1 /nn /check Y,N
+  created_at timestamp /nn
+  updated_at timestamp
+
+todo_lists
+  app_user_id /fk app_users /nn
+  list_name vc200 /nn
+  created_at timestamp /nn
+  created_by_user_id /fk app_users /nn
+  updated_at timestamp
+  updated_by_user_id /fk app_users
+  deleted_at timestamp
+  deleted_by_user_id /fk app_users
+
+tags
+  app_user_id /fk app_users /nn
+  tag_name vc100 /nn
+  created_at timestamp /nn
+  created_by_user_id /fk app_users /nn
+  updated_at timestamp
+  updated_by_user_id /fk app_users
+  deleted_at timestamp
+  deleted_by_user_id /fk app_users
+
+todo_list_tags
+  todo_list_id /fk todo_lists /nn
+  tag_id /fk tags /nn
+  created_at timestamp /nn
+
+tasks
+  todo_list_id /fk todo_lists /nn
+  parent_task_id /fk tasks
+  title vc200 /nn
+  description vc4000
+  status vc20 /nn /check OPEN,IN_PROGRESS,DONE,CANCELED
+  priority num /nn /check 1,2,3
+  due_at timestamp
+  completed_at timestamp
+  created_at timestamp /nn
+  created_by_user_id /fk app_users /nn
+  updated_at timestamp
+  updated_by_user_id /fk app_users
+  deleted_at timestamp
+  deleted_by_user_id /fk app_users</code></pre>
+<hr />
+<h1 id="29-post-quick-sql-checklist">29. Post Quick SQL Checklist</h1>
+<p>Codex חייב להתייחס ל-Quick SQL כ-bootstrap בלבד.</p>
+<p>לאחר generation עליו לבדוק ולהשלים:</p>
+<ul>
+<li>Identity PK לכל טבלה.</li>
+<li>FK constraints.</li>
+<li>Self FK של <code>TASKS.PARENT_TASK_ID</code>.</li>
+<li>Check constraints.</li>
+<li>Unique constraint על <code>TODO_LIST_TAGS</code>.</li>
+<li>Case-insensitive unique index של Tags פעילים בלבד.</li>
+<li>Indexes שנדרשים בפועל.</li>
+<li>Defaults / audit timestamp logic.</li>
+<li><code>COMMENT ON TABLE</code> לכל Table.</li>
+<li><code>COMMENT ON COLUMN</code> לכל Business Column.</li>
+<li>Views בבעלות <code>TASKHUB_API</code>.</li>
+<li>Application Context packages.</li>
+<li>API Packages.</li>
+<li>Explicit Owner-to-API Grants.</li>
+<li>Explicit API-to-App Grants.</li>
+<li>DBMS_SCHEDULER Job.</li>
+<li>Test data.</li>
+<li>Positive tests.</li>
+<li>Negative security tests.</li>
+<li>בדיקות Invalid Objects ו-<code>USER_ERRORS</code>.</li>
+<li>בדיקה שאין Unexpected Objects.</li>
+</ul>
+<p>אם Quick SQL בגרסה שבה נעשה שימוש אינו מייצר Self-FK תקין עבור:</p>
+<pre class="text"><code>parent_task_id /fk tasks</code></pre>
+<p>Codex חייב להשאיר את העמודה שנוצרה ולהוסיף את ה-FK ידנית
+ב-post-generation DDL.</p>
+<h1 id="30-acceptance-criteria">30. Acceptance Criteria</h1>
+<p>ה-POC נחשב תקין כאשר:</p>
+<ol type="1">
+<li><code>TASKHUB_OWNER</code> מכיל את Data Objects בלבד לפי הארכיטקטורה
+המאושרת.</li>
+<li><code>TASKHUB_API</code> מכיל את ה-Code, ה-Views וה-Maintenance
+Objects.</li>
+<li><code>TASKHUB_APP</code> אינו יכול לבצע <code>SELECT</code> ישיר
+מה-Tables של <code>TASKHUB_OWNER</code>.</li>
+<li><code>TASKHUB_APP</code> אינו יכול לבצע DML ישיר על Tables של
+<code>TASKHUB_OWNER</code>.</li>
+<li>קריאה אפליקטיבית אפשרית רק דרך Views מאושרים
+ב-<code>TASKHUB_API</code>.</li>
+<li>כתיבה אפליקטיבית אפשרית רק דרך
+<code>TASKHUB_API.PKG_TASKHUB_API</code>.</li>
+<li>אין <code>APP_USER_ID</code> בפרמטרים של CRUD.</li>
+<li>ללא <code>TASKHUB_CTX</code> תקף ה-API נכשל.</li>
+<li>ללא <code>TASKHUB_CTX</code> תקף ה-Views מחזירים 0 rows.</li>
+<li>כל Test או MCP flow שתלוי ב-Identity מאתחל Context מפורשות ואינו
+מסתמך על Session State קודם.</li>
+<li><code>TASKHUB_APP</code> אינו יכול לקרוא
+ל-<code>PKG_TASKHUB_TEST_CONTEXT</code>.</li>
+<li>משתמש אחד אינו יכול לראות Lists של משתמש אחר.</li>
+<li>משתמש אחד אינו יכול לראות Tasks של משתמש אחר.</li>
+<li>משתמש אחד אינו יכול לעדכן או למחוק Task של משתמש אחר.</li>
+<li>ניסיון לנחש ID של משתמש אחר אינו חושף אם ה-ID קיים.</li>
+<li>לא ניתן ליצור Association בין List של משתמש אחד ל-Tag של משתמש
+אחר.</li>
+<li>ניתן ליצור Subtask עד Level 3.</li>
+<li>ניסיון ליצור Level 4 נכשל.</li>
+<li>יצירת Cycle נכשלת.</li>
+<li>Parent ו-Child חייבים להיות באותה List.</li>
+<li><code>ORDER BY PRIORITY ASC</code> מחזיר HIGH, MEDIUM, LOW.</li>
+<li>מעבר ל-<code>DONE</code> מעדכן <code>COMPLETED_AT</code>.</li>
+<li>יציאה מ-<code>DONE</code> מאפסת <code>COMPLETED_AT</code>.</li>
+<li>Soft Deleted rows אינם מוצגים ב-Views.</li>
+<li><code>DELETE_TAG</code> מבצע Soft Delete, ה-Tag נעלם מה-Views, ואינו
+חוסם יצירת Tag פעיל חדש עם אותו normalized name.</li>
+<li>Purge מוחק פיזית רק מידע שעבר את retention.</li>
+<li>Purge אינו מפר FK או self-FK.</li>
+<li>לכל Table ולכל Business Column קיים Data Dictionary Comment.</li>
+<li>אין Invalid Objects לאחר deployment.</li>
+<li>כל ה-Grants תואמים במדויק ל-Security Contract.</li>
+<li>אין Unexpected Direct Grants מ-<code>TASKHUB_OWNER</code>
+ל-<code>TASKHUB_APP</code>.</li>
+<li>המימוש עובד על Oracle Database 19c+ ומאומת בפועל מול גרסת
+המעבדה.</li>
+<li>לאחר bootstrap ידני של ה-container, ה-users וה-Application Context,
+ניתן למחוק את כל Application Objects ולבנות אותם מחדש מתוך Git
+בלבד.</li>
+<li>בסיום Milestone מבוצע Clean Rebuild מלא ולאחריו Full Test Suite
+שעובר בהצלחה.</li>
+</ol>
+<h1 id="31-סדר-עבודה-מומלץ-ל-codex">31. סדר עבודה מומלץ ל-Codex</h1>
+<p>Codex יעבוד Task-by-Task. אין לתת לו את כל ה-POC כמשימה אחת.</p>
+<p>לכל Task חייבים להיות מוגדרים מראש:</p>
+<ul>
+<li>Objective.</li>
+<li>Scope.</li>
+<li>Allowed Schemas / Connections.</li>
+<li>Required files.</li>
+<li>Success Criteria.</li>
+<li>Tests.</li>
+<li>Stop Condition.</li>
+</ul>
+<h2 id="phase-0---manual-lab-bootstrap">Phase 0 - Manual Lab
+Bootstrap</h2>
+<p>מתבצע ידנית מחוץ ל-Codex:</p>
+<ul>
+<li>WSL / Docker validation.</li>
+<li>Oracle container clean lab.</li>
+<li>יצירת <code>TASKHUB_OWNER</code>, <code>TASKHUB_API</code>,
+<code>TASKHUB_APP</code>.</li>
+<li>יצירת <code>TASKHUB_CTX</code> באמצעות DBA.</li>
+<li>SQLcl saved connections ייעודיים למעבדה בלבד.</li>
+<li>SQLcl MCP ב-Restrict Level <code>R4</code>.</li>
+</ul>
+<h2 id="phase-1---quick-sql--data-model">Phase 1 - Quick SQL / Data
+Model</h2>
+<p>Codex יקבל את בלוק ה-Quick SQL וייצר:</p>
+<ul>
+<li>Tables.</li>
+<li>Constraints.</li>
+<li>Indexes.</li>
+<li>Comments.</li>
+<li>Seed data לצורכי test.</li>
+<li>Owner-to-API grants הנדרשים לשלב הבא.</li>
+</ul>
+<p>לא להתקדם לפני שה-DDL, מבנה האובייקטים והבדיקות המבניות עוברים
+בהצלחה.</p>
+<h2 id="phase-2---security-context">Phase 2 - Security Context</h2>
+<p>לממש:</p>
+<pre class="text"><code>TASKHUB_API.PKG_TASKHUB_CONTEXT_CORE
+TASKHUB_API.PKG_TASKHUB_CONTEXT
+TASKHUB_API.PKG_TASKHUB_TEST_CONTEXT</code></pre>
+<p>ולבדוק:</p>
+<pre class="text"><code>valid user
+inactive user
+missing context
+deterministic re-initialization
+session-state isolation
+TASKHUB_APP cannot execute test context package</code></pre>
+<h2 id="phase-3---views">Phase 3 - Views</h2>
+<p>לממש ב-<code>TASKHUB_API</code>:</p>
+<pre class="text"><code>V_TODO_LISTS
+V_TODO_LIST_TAGS
+V_TASKS
+V_TASK_TREE</code></pre>
+<p>ולבדוק isolation בין שני משתמשים, Soft Delete ו-Read Only.</p>
+<h2 id="phase-4---api">Phase 4 - API</h2>
+<p>לממש:</p>
+<pre class="text"><code>TASKHUB_API.PKG_TASKHUB_API</code></pre>
+<p>כולל:</p>
+<ul>
+<li>Lists.</li>
+<li>Tags.</li>
+<li>Tasks.</li>
+<li>Subtasks.</li>
+<li>Ownership.</li>
+<li>Hierarchy validation.</li>
+<li>Soft Delete.</li>
+<li>Generic not-found/unauthorized behavior.</li>
+</ul>
+<h2 id="phase-5---maintenance">Phase 5 - Maintenance</h2>
+<p>לממש:</p>
+<pre class="text"><code>TASKHUB_API.PKG_TASKHUB_MAINT
+TASKHUB_API.JOB_TASKHUB_PURGE_MONTHLY</code></pre>
+<p>ולבדוק retention, purge order ו-FK integrity.</p>
+<h2 id="phase-6---security-and-regression-tests">Phase 6 - Security and
+Regression Tests</h2>
+<p>לבדוק במפורש:</p>
+<pre class="text"><code>cross-user SELECT
+cross-user UPDATE
+cross-user DELETE
+cross-user list/tag association
+invalid IDs
+missing context
+stale context prevention
+subtask level 4
+task cycle
+direct table privilege denial
+unapproved package privilege denial</code></pre>
+<h2 id="phase-7---clean-rebuild-gate">Phase 7 - Clean Rebuild Gate</h2>
+<p>לאחר Milestone:</p>
+<ol type="1">
+<li>לשמור Evidence של ה-state התקין.</li>
+<li>לבצע Reset של Application Objects לפי Runbook.</li>
+<li>לבנות מחדש מתוך Git בלבד לאחר ה-bootstrap הידני המאושר.</li>
+<li>להריץ Full Test Suite.</li>
+<li>להשוות Object/Grant/Test manifests ל-expected state.</li>
+<li>רק לאחר PASS לסמן את ה-Milestone כ-DONE.</li>
+</ol>
+<h2 id="phase-8---manual-deployment-package">Phase 8 - Manual Deployment
+Package</h2>
+<p>Codex ייצר Deployment Scripts שניתנים להרצה ידנית מחוץ למעבדה.</p>
+<p>Codex אינו פורס ל-QA.</p>
+<p>ה-DBA מריץ את חבילת ה-deploy ידנית ב-SQLcl רגיל לאחר review.</p>
+<h1 id="32-deliverables-מ-codex">32. Deliverables מ-Codex</h1>
+<p>Codex אינו יוצר Database Users ואינו מבצע את ה-privileged bootstrap
+של <code>TASKHUB_CTX</code>.</p>
+<p>קבצי SQL שמשנים state ימוספרו בקפיצות של 10.</p>
+<p>המספור הוא כרונולוגי לפי סדר ההרצה בפועל.</p>
+<p>דוגמה ל-sequence ראשוני צפוי, כאשר שמות מדויקים יכולים להשתנות לפי
+ה-Task:</p>
+<pre class="text"><code>0010_quick_sql_generated_model.sql
+0020_post_quick_sql_constraints.sql
+0030_indexes.sql
+0040_comments.sql
+0050_owner_to_api_grants.sql
+0060_seed_data.sql
+0100_pkg_taskhub_context_core.pks.sql
+0110_pkg_taskhub_context_core.pkb.sql
+0120_pkg_taskhub_context.pks.sql
+0130_pkg_taskhub_context.pkb.sql
+0140_pkg_taskhub_test_context.pks.sql
+0150_pkg_taskhub_test_context.pkb.sql
+0200_views.sql
+0300_pkg_taskhub_api.pks.sql
+0310_pkg_taskhub_api.pkb.sql
+0400_pkg_taskhub_maint.pks.sql
+0410_pkg_taskhub_maint.pkb.sql
+0420_scheduler_job.sql
+0500_api_to_app_grants.sql</code></pre>
+<p>Positive, negative ו-structural tests אינם חייבים להיות חלק
+מ-<code>db/changes</code>; הם יישמרו תחת <code>db/tests</code> ויורצו
+שוב ושוב.</p>
+<p>בנוסף Codex חייב לשמור canonical end-state source תחת
+<code>db/src</code> ולעדכן אותו יחד עם <code>db/changes</code> כדי למנוע
+Database-only changes.</p>
+<h1 id="33-quick-sql-כ-bootstrap">33. Quick SQL כ-Bootstrap</h1>
+<p>במסמך זה Quick SQL הוא חלק מפורש מה-SPEC.</p>
+<p>כל טבלה מוגדרת קודם כל באמצעות Quick SQL.</p>
+<p>ה-DDL שנוצר ממנו אינו נחשב final implementation עד ש-Codex מבצע
+review ומשלים את דרישות האבטחה וה-business rules.</p>
+<p>Oracle מתארת את Quick SQL ככלי ליצירה מהירה של מודל relational
+באמצעות shorthand, כולל יצירת Primary Keys אוטומטיים ו-Foreign Keys
+באמצעות <code>/fk</code> או <code>/references</code>.</p>
+<p>References:</p>
+<ul>
+<li><p>Oracle APEX - Creating Data Models with Quick SQL<br />
+<a
+href="https://docs.oracle.com/en/database/oracle/apex/26.1/apxdc/creating-data-models-quick-sql.html">https://docs.oracle.com/en/database/oracle/apex/26.1/apxdc/creating-data-models-quick-sql.html</a></p></li>
+<li><p>Oracle APEX SQL Workshop Guide - Using Quick SQL<br />
+<a
+href="https://docs.oracle.com/en/database/oracle/apex/26.1/aeutl/using-quick-sql.html">https://docs.oracle.com/en/database/oracle/apex/26.1/aeutl/using-quick-sql.html</a></p></li>
+</ul>
+<hr />
+<h1 id="34-repository-execution-contract">34. Repository Execution
+Contract</h1>
+<p>ה-repository הוא ה-Operating System של המעבדה וה-Source of Truth של
+המימוש.</p>
+<h2 id="341-git-first">34.1 Git-first</h2>
+<p>אסור לבצע DDL או DML משמעותי ב-Database אם ה-SQL המדויק אינו קיים
+קודם כקובץ תחת:</p>
+<pre class="text"><code>db/changes/</code></pre>
+<p>Codex חייב:</p>
+<ol type="1">
+<li>ליצור או לעדכן Source בקבצים.</li>
+<li>ליצור numbered change script.</li>
+<li>להריץ את תוכן ה-script דרך <code>run-sql</code> ב-MCP.</li>
+<li>לבצע verification.</li>
+<li>לשמור Tests ו-Evidence לפי ה-Task.</li>
+</ol>
+<h2 id="342-r4-rule">34.2 R4 Rule</h2>
+<p>המעבדה מתחילה ב-SQLcl MCP Restrict Level <code>R4</code>.</p>
+<p>Codex אינו מסתמך על <code>@</code> או <code>@@</code> דרך MCP.</p>
+<p>Codex קורא את קובץ ה-SQL מה-repository ושולח את תוכנו דרך
+<code>run-sql</code>.</p>
+<p>לצורך הרצה ידנית, ה-repository יחזיק runner scripts שמשתמשים
+ב-<code>@</code>/<code>@@</code> ב-SQLcl רגיל.</p>
+<h2 id="343-diagnostic-sql">34.3 Diagnostic SQL</h2>
+<p>Read-only query חד-פעמי אינו חייב להישמר
+ב-<code>db/changes</code>.</p>
+<p>Query שחוזר כחלק מ-verification הופך ל-Test קבוע תחת:</p>
+<pre class="text"><code>db/tests/</code></pre>
+<h2 id="344-no-hidden-state">34.4 No hidden state</h2>
+<p>אסור שמידע שנדרש לשחזור המערכת יתקיים רק:</p>
+<ul>
+<li>בשיחה עם Codex.</li>
+<li>ב-ChatGPT.</li>
+<li>בתוך Session SQLcl.</li>
+<li>בתוך Database ללא Source מקביל ב-Git.</li>
+</ul>
+<h2 id="345-qa-boundary">34.5 QA Boundary</h2>
+<p>Codex אחראי לפיתוח ולבדיקות ב-DEV Lab בלבד.</p>
+<p>Codex מייצר Deployment Artifacts, אך QA מופעל ידנית מחוץ למעבדה על
+ידי אדם.</p>
+<hr />
+<h1 id="35-official-references">35. Official References</h1>
+<ul>
+<li><p>Oracle Database Security Guide - Creating Database Session-Based
+Application Contexts<br />
+<a
+href="https://docs.oracle.com/en/database/oracle/oracle-database/19/dbseg/creating-database-session-based-application-contexts1.html">https://docs.oracle.com/en/database/oracle/oracle-database/19/dbseg/creating-database-session-based-application-contexts1.html</a></p></li>
+<li><p>Oracle Database SQL Language Reference - CREATE CONTEXT<br />
+<a
+href="https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/CREATE-CONTEXT.html">https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/CREATE-CONTEXT.html</a></p></li>
+<li><p>Oracle SQLcl - Configuring Restrict Levels for SQLcl MCP
+Server<br />
+<a
+href="https://docs.oracle.com/en/database/oracle/sql-developer-command-line/26.2/sqcug/configuring-restrict-levels-sqlcl-mcp-server.html">https://docs.oracle.com/en/database/oracle/sql-developer-command-line/26.2/sqcug/configuring-restrict-levels-sqlcl-mcp-server.html</a></p></li>
+<li><p>Oracle SQLcl MCP Server Tools<br />
+<a
+href="https://docs.oracle.com/en/database/oracle/sql-developer-command-line/26.2/sqcug/sqlcl-mcp-server-tools.html">https://docs.oracle.com/en/database/oracle/sql-developer-command-line/26.2/sqcug/sqlcl-mcp-server-tools.html</a></p></li>
+<li><p>OpenAI Codex MCP documentation<br />
+<a
+href="https://developers.openai.com/codex/mcp/">https://developers.openai.com/codex/mcp/</a></p></li>
+</ul>
+<hr />
+<h1 id="end-of-specification">End of Specification</h1>
+
+</main></body></html>

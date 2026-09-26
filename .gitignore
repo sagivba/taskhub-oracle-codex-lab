@@ -1,0 +1,28 @@
+# Local secrets and environment files
+.env
+.env.*
+!.env.example
+
+# Editor / OS
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# Runtime logs and temporary output
+*.log
+*.tmp
+*.bak
+*.out
+
+# Local evidence that may contain environment-specific details
+evidence/local/
+
+# Local MCP / Oracle connection stores must never be copied into this repo
+.dbtools/
+wallet/
+*.sso
+*.p12
+*.jks
+*.pem
+*.key

@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TaskHub - ארכיטקטורת אבטחה</title>
+<style>
+  body{margin:0;background:#f6f7f9;color:#1f2937;font-family:Arial,"Segoe UI",sans-serif;direction:rtl}
+  main{max-width:1260px;margin:0 auto;padding:28px}
+  h1{font-size:28px;margin:0 0 8px}
+  p{margin:0 0 18px;line-height:1.6;color:#4b5563}
+  .frame{background:#fff;border:1px solid #d1d5db;padding:18px;overflow:auto}
+  svg{display:block;min-width:1120px;width:100%;height:auto}
+  .zone{fill:#f9fafb;stroke:#cbd5e1;stroke-width:1.5}
+  .app{fill:#eef4ff;stroke:#4f6fad;stroke-width:1.5}
+  .api{fill:#f1f8f4;stroke:#347a55;stroke-width:1.5}
+  .owner{fill:#fff8e6;stroke:#aa7a18;stroke-width:1.5}
+  .ctx{fill:#f8f5ff;stroke:#7254a3;stroke-width:1.5}
+  .lab{fill:#fff;stroke:#667085;stroke-width:1.4;stroke-dasharray:6 5}
+  .line{fill:none;stroke:#475467;stroke-width:2}
+  .dash{fill:none;stroke:#667085;stroke-width:1.6;stroke-dasharray:7 6}
+  .head{fill:#475467}
+  .title{font-size:18px;font-weight:700;color:#111827;text-align:center}
+  .small{font-size:13px;line-height:1.45;color:#374151;text-align:center}
+  .zoneTitle{font-size:14px;font-weight:700;color:#475467}
+  .note{font-size:12px;line-height:1.4;color:#475467}
+</style>
+</head>
+<body>
+<main>
+  <h1>TaskHub - ארכיטקטורת אבטחה</h1>
+  <p>התרשים מציג את ההפרדה המאושרת בין <span dir="ltr">TASKHUB_OWNER</span>, <span dir="ltr">TASKHUB_API</span> ו-<span dir="ltr">TASKHUB_APP</span>, ואת מסלול ה-Application Context והבדיקות במעבדת DEV.</p>
+  <div class="frame">
+    <svg viewBox="0 0 1180 650" role="img" aria-labelledby="t d">
+      <title id="t">TaskHub three-schema security architecture</title>
+      <desc id="d">Application schema accesses only approved runtime packages and read-only views in the API schema. API schema uses explicit object grants to the data owner. Application context is set by a trusted core package. A DEV-only test facade is available to the lab but not to the application schema.</desc>
+
+      <rect x="25" y="70" width="240" height="500" rx="8" class="zone"/>
+      <foreignObject x="55" y="82" width="180" height="30"><div xmlns="http://www.w3.org/1999/xhtml" class="zoneTitle" dir="rtl">Application zone</div></foreignObject>
+
+      <rect x="315" y="70" width="515" height="500" rx="8" class="zone"/>
+      <foreignObject x="485" y="82" width="180" height="30"><div xmlns="http://www.w3.org/1999/xhtml" class="zoneTitle" dir="rtl">API / Code zone</div></foreignObject>
+
+      <rect x="880" y="70" width="270" height="500" rx="8" class="zone"/>
+      <foreignObject x="930" y="82" width="170" height="30"><div xmlns="http://www.w3.org/1999/xhtml" class="zoneTitle" dir="rtl">Data zone</div></foreignObject>
+
+      <rect x="55" y="145" width="180" height="120" rx="8" class="app"/>
+      <foreignObject x="68" y="160" width="154" height="90"><div xmlns="http://www.w3.org/1999/xhtml" class="small"><div class="title" dir="ltr">TASKHUB_APP</div><div dir="rtl">Future APEX Parsing Schema</div><div dir="ltr">EXECUTE + SELECT only</div><div dir="rtl">ללא גישה ישירה לטבלאות</div></div></foreignObject>
+
+      <rect x="365" y="130" width="190" height="130" rx="8" class="api"/>
+      <foreignObject x="378" y="145" width="164" height="100"><div xmlns="http://www.w3.org/1999/xhtml" class="small"><div class="title" dir="ltr">PKG_TASKHUB_CONTEXT</div><div dir="rtl">Runtime facade</div><div dir="ltr">init_from_apex</div><div dir="ltr">clear_context</div></div></foreignObject>
+
+      <rect x="590" y="130" width="190" height="130" rx="8" class="api"/>
+      <foreignObject x="603" y="145" width="164" height="100"><div xmlns="http://www.w3.org/1999/xhtml" class="small"><div class="title" dir="ltr">PKG_TASKHUB_API</div><div dir="rtl">CRUD + authorization</div><div dir="ltr">AUTHID DEFINER</div><div dir="rtl">ללא APP_USER_ID בפרמטרים</div></div></foreignObject>
+
+      <rect x="365" y="310" width="190" height="130" rx="8" class="ctx"/>
+      <foreignObject x="378" y="325" width="164" height="100"><div xmlns="http://www.w3.org/1999/xhtml" class="small"><div class="title" dir="ltr">TASKHUB_CTX</div><div dir="ltr">APP_USER_ID</div><div dir="ltr">APP_USERNAME</div><div dir="rtl">Session context</div></div></foreignObject>
+
+      <rect x="590" y="310" width="190" height="130" rx="8" class="api"/>
+      <foreignObject x="603" y="322" width="164" height="108"><div xmlns="http://www.w3.org/1999/xhtml" class="small"><div class="title" dir="ltr">PKG_TASKHUB_CONTEXT_CORE</div><div dir="rtl">Trusted setter</div><div dir="ltr">SET_CONTEXT / CLEAR_CONTEXT</div><div dir="rtl">לא Granted ל-APP</div></div></foreignObject>
+
+      <rect x="365" y="475" width="190" height="70" rx="8" class="lab"/>
+      <foreignObject x="378" y="486" width="164" height="50"><div xmlns="http://www.w3.org/1999/xhtml" class="small"><div class="title" dir="ltr">PKG_TASKHUB_TEST_CONTEXT</div><div dir="rtl">DEV only, not granted to APP</div></div></foreignObject>
+
+      <rect x="590" y="475" width="190" height="70" rx="8" class="api"/>
+      <foreignObject x="603" y="486" width="164" height="50"><div xmlns="http://www.w3.org/1999/xhtml" class="small"><div class="title" dir="ltr">Read-only Views</div><div dir="ltr">V_TODO_LISTS / V_TASKS / ...</div></div></foreignObject>
+
+      <rect x="930" y="180" width="170" height="235" rx="8" class="owner"/>
+      <foreignObject x="944" y="196" width="142" height="205"><div xmlns="http://www.w3.org/1999/xhtml" class="small"><div class="title" dir="ltr">TASKHUB_OWNER</div><div dir="rtl">Data owner only</div><div dir="ltr">APP_USERS</div><div dir="ltr">TODO_LISTS</div><div dir="ltr">TAGS</div><div dir="ltr">TODO_LIST_TAGS</div><div dir="ltr">TASKS</div><div dir="rtl">Constraints / Indexes / Comments</div></div></foreignObject>
+
+      <path d="M235 185 H358" class="line"/><polygon points="358,185 348,180 348,190" class="head"/>
+      <foreignObject x="245" y="158" width="105" height="25"><div xmlns="http://www.w3.org/1999/xhtml" class="note" dir="ltr">EXECUTE</div></foreignObject>
+
+      <path d="M235 225 H575 V510 H583" class="line"/><polygon points="583,510 573,505 573,515" class="head"/>
+      <foreignObject x="340" y="498" width="110" height="25"><div xmlns="http://www.w3.org/1999/xhtml" class="note" dir="ltr">SELECT</div></foreignObject>
+
+      <path d="M460 260 V302" class="line"/><polygon points="460,302 455,292 465,292" class="head"/>
+      <foreignObject x="470" y="273" width="100" height="25"><div xmlns="http://www.w3.org/1999/xhtml" class="note" dir="rtl">דרך Core</div></foreignObject>
+
+      <path d="M685 310 V268 H565 V195 H555" class="dash"/><polygon points="555,195 565,190 565,200" class="head"/>
+
+      <path d="M555 375 H582" class="line"/><polygon points="582,375 572,370 572,380" class="head"/>
+      <foreignObject x="555" y="345" width="100" height="25"><div xmlns="http://www.w3.org/1999/xhtml" class="note" dir="rtl">Context read</div></foreignObject>
+
+      <path d="M685 260 V302" class="line"/><polygon points="685,302 680,292 690,292" class="head"/>
+
+      <path d="M555 510 H575 V405 H582" class="dash"/><polygon points="582,405 572,400 572,410" class="head"/>
+
+      <path d="M780 195 H922" class="line"/><polygon points="922,195 912,190 912,200" class="head"/>
+      <foreignObject x="802" y="166" width="110" height="25"><div xmlns="http://www.w3.org/1999/xhtml" class="note" dir="ltr">DML + SELECT</div></foreignObject>
+
+      <path d="M780 510 H850 V355 H922" class="line"/><polygon points="922,355 912,350 912,360" class="head"/>
+      <foreignObject x="822" y="483" width="95" height="25"><div xmlns="http://www.w3.org/1999/xhtml" class="note" dir="ltr">SELECT</div></foreignObject>
+
+      <foreignObject x="40" y="585" width="1100" height="45"><div xmlns="http://www.w3.org/1999/xhtml" class="note" dir="rtl">ה-bootstrap של משתמשי ה-Database ושל <span dir="ltr">TASKHUB_CTX</span> מתבצע ידנית. בדיקות DEV משתמשות ב-<span dir="ltr">PKG_TASKHUB_TEST_CONTEXT</span>, אך ה-Application Schema אינו מקבל אליו הרשאה.</div></foreignObject>
+    </svg>
+  </div>
+</main>
+</body>
+</html>

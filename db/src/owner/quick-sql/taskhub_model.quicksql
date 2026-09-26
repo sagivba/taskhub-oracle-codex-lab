@@ -1,0 +1,48 @@
+app_users
+  username vc128 /nn /unique
+  display_name vc200
+  email vc320
+  is_active vc1 /nn /check Y,N
+  created_at timestamp /nn
+  updated_at timestamp
+
+todo_lists
+  app_user_id /fk app_users /nn
+  list_name vc200 /nn
+  created_at timestamp /nn
+  created_by_user_id /fk app_users /nn
+  updated_at timestamp
+  updated_by_user_id /fk app_users
+  deleted_at timestamp
+  deleted_by_user_id /fk app_users
+
+tags
+  app_user_id /fk app_users /nn
+  tag_name vc100 /nn
+  created_at timestamp /nn
+  created_by_user_id /fk app_users /nn
+  updated_at timestamp
+  updated_by_user_id /fk app_users
+  deleted_at timestamp
+  deleted_by_user_id /fk app_users
+
+todo_list_tags
+  todo_list_id /fk todo_lists /nn
+  tag_id /fk tags /nn
+  created_at timestamp /nn
+
+tasks
+  todo_list_id /fk todo_lists /nn
+  parent_task_id /fk tasks
+  title vc200 /nn
+  description vc4000
+  status vc20 /nn /check OPEN,IN_PROGRESS,DONE,CANCELED
+  priority num /nn /check 1,2,3
+  due_at timestamp
+  completed_at timestamp
+  created_at timestamp /nn
+  created_by_user_id /fk app_users /nn
+  updated_at timestamp
+  updated_by_user_id /fk app_users
+  deleted_at timestamp
+  deleted_by_user_id /fk app_users

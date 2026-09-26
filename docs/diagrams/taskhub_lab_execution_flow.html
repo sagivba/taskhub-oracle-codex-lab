@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TaskHub - זרימת פיתוח במעבדת Codex</title>
+<style>
+ body{margin:0;background:#f6f7f9;color:#1f2937;font-family:Arial,"Segoe UI",sans-serif;direction:rtl}
+ main{max-width:1240px;margin:0 auto;padding:28px}
+ h1{font-size:28px;margin:0 0 8px} p{margin:0 0 18px;line-height:1.6;color:#4b5563}
+ .frame{background:#fff;border:1px solid #d1d5db;padding:18px;overflow:auto}
+ svg{display:block;min-width:1100px;width:100%;height:auto}
+ .box{fill:#fff;stroke:#667085;stroke-width:1.5}.git{fill:#eef4ff;stroke:#4f6fad}.mcp{fill:#f8f5ff;stroke:#7254a3}.db{fill:#f1f8f4;stroke:#347a55}.manual{fill:#fff8e6;stroke:#aa7a18}.test{fill:#f9fafb;stroke:#667085}
+ .line{fill:none;stroke:#475467;stroke-width:2}.dash{fill:none;stroke:#667085;stroke-width:1.6;stroke-dasharray:7 6}.head{fill:#475467}
+ .title{font-size:17px;font-weight:700;color:#111827;text-align:center}.small{font-size:13px;line-height:1.45;color:#374151;text-align:center}.note{font-size:12px;line-height:1.4;color:#475467}
+</style>
+</head>
+<body><main>
+<h1>TaskHub - זרימת פיתוח במעבדת Codex</h1>
+<p>התרשים מדגיש שה-SQL נכתב קודם ל-Git, ורק אחר כך נשלח ל-Oracle דרך <span dir="ltr">SQLcl MCP R4</span>. אותו SQL נשאר replayable להרצה ידנית.</p>
+<div class="frame"><svg viewBox="0 0 1160 600" role="img" aria-labelledby="t2 d2">
+<title id="t2">TaskHub Codex lab execution flow</title><desc id="d2">Codex reads tasks and source in Git, writes numbered SQL before execution, sends SQL through SQLcl MCP R4 to the DEV schemas, runs deterministic tests, records concise evidence, and maintains a manual SQLcl replay path for rebuild and QA deployment.</desc>
+
+<rect x="35" y="90" width="220" height="120" rx="8" class="box git"/>
+<foreignObject x="50" y="107" width="190" height="90"><div xmlns="http://www.w3.org/1999/xhtml" class="small"><div class="title" dir="ltr">Git Repository</div><div dir="ltr">AGENTS.md + task + spec</div><div dir="ltr">db/src + db/changes + tests</div><div dir="rtl">Source of Truth</div></div></foreignObject>
+
+<rect x="330" y="90" width="200" height="120" rx="8" class="box"/>
+<foreignObject x="345" y="107" width="170" height="90"><div xmlns="http://www.w3.org/1999/xhtml" class="small"><div class="title" dir="ltr">Codex CLI</div><div dir="rtl">עורך source</div><div dir="rtl">יוצר SQL ממוספר</div><div dir="rtl">מריץ רק אחרי שמירה</div></div></foreignObject>
+
+<rect x="610" y="90" width="200" height="120" rx="8" class="box mcp"/>
+<foreignObject x="625" y="107" width="170" height="90"><div xmlns="http://www.w3.org/1999/xhtml" class="small"><div class="title" dir="ltr">SQLcl MCP</div><div dir="ltr">Restrict Level R4</div><div dir="ltr">run-sql</div><div dir="rtl">ללא @ / @@ דרך MCP</div></div></foreignObject>
+
+<rect x="885" y="70" width="230" height="165" rx="8" class="box db"/>
+<foreignObject x="900" y="88" width="200" height="135"><div xmlns="http://www.w3.org/1999/xhtml" class="small"><div class="title" dir="ltr">Oracle DEV Lab</div><div dir="ltr">TASKHUB_OWNER</div><div dir="ltr">TASKHUB_API</div><div dir="ltr">TASKHUB_APP</div><div dir="rtl">DDL/DML + compile + query</div></div></foreignObject>
+
+<rect x="330" y="320" width="200" height="120" rx="8" class="box test"/>
+<foreignObject x="345" y="337" width="170" height="90"><div xmlns="http://www.w3.org/1999/xhtml" class="small"><div class="title">Tests</div><div dir="rtl">Structure / Context</div><div dir="rtl">Security / Functional</div><div dir="rtl">Maintenance / Rebuild</div></div></foreignObject>
+
+<rect x="610" y="320" width="200" height="120" rx="8" class="box test"/>
+<foreignObject x="625" y="337" width="170" height="90"><div xmlns="http://www.w3.org/1999/xhtml" class="small"><div class="title">Evidence</div><div dir="rtl">תוצאות קצרות</div><div dir="ltr">USER_ERRORS / grants</div><div dir="rtl">PASS / BLOCKED</div></div></foreignObject>
+
+<rect x="35" y="320" width="220" height="120" rx="8" class="box manual"/>
+<foreignObject x="50" y="337" width="190" height="90"><div xmlns="http://www.w3.org/1999/xhtml" class="small"><div class="title" dir="ltr">Manual SQLcl Replay</div><div dir="ltr">db/deploy/install/run_all.sql</div><div dir="ltr">@@ numbered changes</div><div dir="rtl">Rebuild / QA מחוץ ל-Codex</div></div></foreignObject>
+
+<path d="M255 150 H322" class="line"/><polygon points="322,150 312,145 312,155" class="head"/>
+<path d="M530 150 H602" class="line"/><polygon points="602,150 592,145 592,155" class="head"/>
+<path d="M810 150 H877" class="line"/><polygon points="877,150 867,145 867,155" class="head"/>
+<path d="M1000 235 V280 H430 V312" class="line"/><polygon points="430,312 425,302 435,302" class="head"/>
+<path d="M530 380 H602" class="line"/><polygon points="602,380 592,375 592,385" class="head"/>
+<path d="M710 320 V270 H430 V218" class="dash"/><polygon points="430,218 425,228 435,228" class="head"/>
+<path d="M145 210 V312" class="dash"/><polygon points="145,312 140,302 150,302" class="head"/>
+
+<foreignObject x="270" y="120" width="55" height="25"><div xmlns="http://www.w3.org/1999/xhtml" class="note" dir="rtl">קורא</div></foreignObject>
+<foreignObject x="545" y="120" width="55" height="25"><div xmlns="http://www.w3.org/1999/xhtml" class="note" dir="rtl">SQL</div></foreignObject>
+<foreignObject x="825" y="120" width="55" height="25"><div xmlns="http://www.w3.org/1999/xhtml" class="note" dir="ltr">STDIO</div></foreignObject>
+<foreignObject x="455" y="458" width="250" height="70"><div xmlns="http://www.w3.org/1999/xhtml" class="note" dir="rtl">אם בדיקה נכשלת, מתקנים source, יוצרים change חדש לפי הצורך, ומריצים שוב. אין תיקון נסתר ישירות ב-Database.</div></foreignObject>
+</svg></div>
+</main></body></html>
