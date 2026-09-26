@@ -1,0 +1,4 @@
+-- APP_USERS_PK is the unique index created for the APP_USERS primary key.
+-- APP_USERS_UQ1 is the unique index created for the USERNAME unique constraint.
+-- No standalone USERNAME index is required because APP_USERS_UQ1 supports
+-- exact, case-sensitive username lookup.

@@ -19,6 +19,7 @@ create user taskhub_owner
 
 grant create session to taskhub_owner;
 grant create table to taskhub_owner;
+grant create sequence to taskhub_owner;
 
 prompt Creating TASKHUB_API...
 create user taskhub_api
