@@ -1,5 +1,21 @@
 # Task 20 - Application Context and Deterministic Test Identity
 
+## Implementation status
+
+Status: PASS (2026-09-27)
+
+Implemented and verified:
+
+- validated trusted-core initialization of `APP_USER_ID` and `APP_USERNAME`;
+- runtime APEX facade and separate DEV-only test facade;
+- deterministic active, inactive, unknown, clear, A-to-B and failed-reinitialization tests;
+- live denial of core/test facade execution and direct context spoofing from `TASKHUB_APP`;
+- approved runtime-facade grant only.
+
+The same iteration also delivered the isolated `CREATE_LIST` vertical slice from the
+Task 40 API contract. The remainder of the list/tag API is not part of this task and
+is not complete.
+
 ## Objective
 Implement secure application identity handling without depending on APEX during DEV tests.
 

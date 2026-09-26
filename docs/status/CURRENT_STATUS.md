@@ -2,15 +2,15 @@
 
 ## Project state
 
-Status: TASK 10 DATA MODEL COMPLETE
+Status: TASK 20 SECURITY CONTEXT COMPLETE; CREATE-LIST API SLICE PASS
 
 The TaskHub Oracle lab infrastructure is running, the three database schemas have been created and validated, and the Codex + SQLcl MCP read-only acceptance test has passed.
 
-The Application Context core milestone is complete. The full canonical Task 10 owner-side model is implemented and structurally verified: `APP_USERS`, `TODO_LISTS`, `TAGS`, `TODO_LIST_TAGS` and `TASKS`.
+The full canonical Task 10 owner-side model is implemented and structurally verified. Task 20 now has validated runtime/test context facades, deterministic stale-session protection and least-privilege grants. The first Task 40 vertical slice, `PKG_TASKHUB_API.CREATE_LIST`, is implemented and verified; the rest of Task 40 remains pending.
 
 ## Current task
 
-docs/tasks/20_security_context.md
+docs/tasks/30_views.md
 
 ## Approved architecture
 
@@ -78,15 +78,17 @@ TASKHUB_APP:
 - Temporary tablespace: TEMP
 - CREATE SESSION
 
-## Security baseline validation
+## Current security grants
 
 Verified:
 
-- no roles granted to the three TaskHub schemas;
-- no broad ANY system privileges;
-- no object privileges currently granted;
-- TASKHUB_APP has no direct access to TASKHUB_OWNER objects;
-- no DBA or RESOURCE role grants.
+- no broad `ANY` system privileges or roles were added;
+- `TASKHUB_OWNER.APP_USERS`: `SELECT` to `TASKHUB_API`;
+- `TASKHUB_OWNER.TODO_LISTS`: `SELECT`, `INSERT` to `TASKHUB_API`;
+- `TASKHUB_API.PKG_TASKHUB_CONTEXT`: `EXECUTE` to `TASKHUB_APP`;
+- `TASKHUB_API.PKG_TASKHUB_API`: `EXECUTE` to `TASKHUB_APP`;
+- no owner-table privilege to `TASKHUB_APP`;
+- no `TASKHUB_APP` execution privilege on context core/test packages.
 
 ## Oracle validation
 
@@ -103,14 +105,16 @@ Verified:
 ## Approved SQLcl saved connection names
 
 TASKHUB_OWNER connection : taskhub-owner-mcp (verified through MCP)
-TASKHUB_API connection   : NOT CONFIGURED
+TASKHUB_API connection   : taskhub-api-mcp (verified through MCP)
 TASKHUB_APP connection   : taskhub-app-mcp (verified through MCP)
 
 ## Open items
 
-1. Configure and document the approved `TASKHUB_API` connection before it is needed.
-2. Complete Task 20 runtime/test context facades and extend the trusted core to resolve `APP_USER_ID` / `APP_USERNAME` from `APP_USERS`.
-3. Add seed/test application users and cross-schema grants only in their approved task steps.
+1. Oracle Annotation export support is not implemented and no repository specification currently defines it; define scope before implementation.
+2. No PL/SQL package documentation convention is defined; establish one before broad package expansion.
+3. Task 30 filtered read-only views remain next in the approved task order.
+4. Task 40 still requires list update/delete and all tag operations, ownership/non-disclosure behavior and full CRUD tests.
+5. Positive `TASKHUB_APP` initialization through `INIT_FROM_APEX` requires a real APEX request context; DEV identity tests remain intentionally behind the ungranted test facade.
 
 ## Evidence
 
@@ -122,7 +126,31 @@ Do not store credentials in evidence.
 
 ## Exact next step
 
-Begin Task 20 from `docs/tasks/20_security_context.md`; configure and document the approved `TASKHUB_API` connection before executing its changes.
+Begin Task 30 from `docs/tasks/30_views.md`. Do not expand the remaining Task 40 API before the Task 30 view gate passes.
+
+## Task 20 security context and create-list slice
+
+Status: PASS
+
+Completed:
+
+- Added deterministic DEV identities for Alice, Bob and an inactive user.
+- Replaced the bootstrap `APP_USER` setter with validated `APP_USER_ID` / `APP_USERNAME` initialization.
+- Added `PKG_TASKHUB_CONTEXT` and DEV-only `PKG_TASKHUB_TEST_CONTEXT`.
+- Added minimal `PKG_TASKHUB_API.CREATE_LIST(p_list_name) return number` with context-derived ownership/audit values and no transaction control.
+- Added numbered changes `0080` through `0160`, canonical source, install-runner entries and context/security/functional tests.
+- Verified all eight API package objects are valid and `USER_ERRORS` is empty.
+- Verified the exact five-grant manifest and live negative behavior from `TASKHUB_APP`.
+- Verified create-list ownership/audit behavior with rollback and no residual test rows.
+
+Documentation-debt reconciliation:
+
+- Oracle Annotation export support: not implemented or specified; recorded as follow-up.
+- PL/SQL package documentation convention: not defined; recorded as follow-up.
+
+Evidence:
+
+- `evidence/local/task20_create_list_slice_2026-09-27.md`
 
 ## Task 10 canonical data model
 
@@ -145,7 +173,7 @@ Test compatibility note:
 
 Open issues:
 - No Task 10 data-model issues remain.
-- The approved `TASKHUB_API` saved connection is still not configured.
+- The approved `TASKHUB_API` saved connection is now configured and verified.
 
 Evidence:
 - `evidence/local/task10_data_model_completion_2026-09-26.md`
@@ -161,9 +189,7 @@ Completed:
 - Verified that no unexpected invalid object, redundant USERNAME index or username-normalization index was introduced.
 
 Pending:
-- No seed users yet.
-- No APP_USERS grants yet.
-- Application Context has not yet been extended with `APP_USER_ID` / `APP_USERNAME`.
+- Historical note: seed users, the APP_USERS lookup grant and context identity extension were delivered in Task 20.
 
 Evidence:
 - `evidence/local/app_users_0030_execution_2026-09-26.md`
@@ -189,24 +215,21 @@ Status: PASS
 
 Completed:
 - Created `TASKHUB_CTX`.
-- Created and compiled `TASKHUB_API.PKG_TASKHUB_CONTEXT_CORE`.
-- Added deterministic `init_for_test(p_username)` behavior.
-- Added `clear_context`.
-- Verified `APP_USER` is session-local and is cleared correctly.
-- Verified behavior as `TASKHUB_API`.
-- Verified `TASKHUB_APP` cannot invoke the internal context-core package directly.
+- Created and compiled the core, runtime and DEV-only test context packages.
+- Added deterministic, validated `APP_USER_ID` / `APP_USERNAME` initialization and explicit clear behavior.
+- Verified active, inactive, unknown, A-to-B and valid-to-failed flows as `TASKHUB_API`.
+- Verified `TASKHUB_APP` cannot invoke core/test packages or set the trusted context directly.
 
 Security decision:
 - `TASKHUB_APP` will not receive direct `EXECUTE` on `PKG_TASKHUB_CONTEXT_CORE`.
-- Identity initialization will remain behind the `TASKHUB_API` security boundary.
-- `USER_ID` is intentionally deferred until the canonical users table exists and the API can resolve it internally.
+- Identity initialization remains behind the `TASKHUB_API` security boundary.
+- Runtime identity accepts no caller username and reads `APEX$SESSION.APP_USER`.
 
 Evidence:
 - `evidence/local/taskhub_context_milestone.txt`
 
 Next:
-- Continue with the next database source milestone.
-- Build the canonical owner-side objects before extending the context with `USER_ID`.
+- Task 30 filtered views and read-isolation gate.
 
 ## Codex + SQLcl MCP read-only acceptance
 

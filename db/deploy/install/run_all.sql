@@ -9,3 +9,12 @@
 @@../../changes/0050_create_tags.sql
 @@../../changes/0060_create_todo_list_tags.sql
 @@../../changes/0070_create_tasks.sql
+@@../../changes/0080_grant_context_user_lookup.sql
+@@../../changes/0090_seed_task20_test_users.sql
+@@../../changes/0100_pkg_taskhub_context_core.sql
+@@../../changes/0110_pkg_taskhub_context.sql
+@@../../changes/0120_pkg_taskhub_test_context.sql
+@@../../changes/0130_grant_runtime_context.sql
+@@../../changes/0140_grant_create_list_insert.sql
+@@../../changes/0150_pkg_taskhub_api_create_list.sql
+@@../../changes/0160_grant_create_list_api.sql
