@@ -5,3 +5,4 @@
 @@../../changes/0010_pkg_taskhub_context_core_spec.sql
 @@../../changes/0020_pkg_taskhub_context_core_body.sql
 @@../../changes/0030_create_app_users.sql
+@@../../changes/0040_create_todo_lists.sql

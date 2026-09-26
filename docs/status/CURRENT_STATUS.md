@@ -2,11 +2,11 @@
 
 ## Project state
 
-Status: TASK 10 APP_USERS MILESTONE PASS
+Status: TASK 10 TODO_LISTS MILESTONE PASS
 
 The TaskHub Oracle lab infrastructure is running, the three database schemas have been created and validated, and the Codex + SQLcl MCP read-only acceptance test has passed.
 
-The Application Context milestone is complete. `TASKHUB_OWNER.APP_USERS` is implemented and structurally verified; the remaining Task 10 data model objects are pending.
+The Application Context milestone is complete. `TASKHUB_OWNER.APP_USERS` and `TASKHUB_OWNER.TODO_LISTS` are implemented and structurally verified; the remaining Task 10 data model objects are pending.
 
 ## Current task
 
@@ -122,7 +122,7 @@ Do not store credentials in evidence.
 
 ## Exact next step
 
-Continue Task 10 with the next canonical owner-side table, `TASKHUB_OWNER.TODO_LISTS`.
+Continue Task 10 with the next canonical owner-side table, `TASKHUB_OWNER.TAGS`.
 
 ## APP_USERS milestone
 
@@ -141,6 +141,21 @@ Pending:
 
 Evidence:
 - `evidence/local/app_users_0030_execution_2026-09-26.md`
+
+## TODO_LISTS milestone
+
+Status: PASS
+
+Completed:
+- Applied `db/changes/0040_create_todo_lists.sql` successfully.
+- Structural verification `0110` through `0160` passed with zero discrepancies.
+- Verified `TASKHUB_OWNER.APP_USERS` remains the prerequisite owner and audit-identity table.
+
+Evidence:
+- `evidence/local/todo_lists_0040_execution_2026-09-26.md`
+
+Next:
+- Continue Task 10 with `TASKHUB_OWNER.TAGS`.
 
 ## Application Context milestone
 
