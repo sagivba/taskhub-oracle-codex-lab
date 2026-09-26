@@ -6,3 +6,6 @@
 @@../../changes/0020_pkg_taskhub_context_core_body.sql
 @@../../changes/0030_create_app_users.sql
 @@../../changes/0040_create_todo_lists.sql
+@@../../changes/0050_create_tags.sql
+@@../../changes/0060_create_todo_list_tags.sql
+@@../../changes/0070_create_tasks.sql

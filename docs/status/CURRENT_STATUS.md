@@ -2,15 +2,15 @@
 
 ## Project state
 
-Status: TASK 10 TODO_LISTS MILESTONE PASS
+Status: TASK 10 DATA MODEL COMPLETE
 
 The TaskHub Oracle lab infrastructure is running, the three database schemas have been created and validated, and the Codex + SQLcl MCP read-only acceptance test has passed.
 
-The Application Context milestone is complete. `TASKHUB_OWNER.APP_USERS` and `TASKHUB_OWNER.TODO_LISTS` are implemented and structurally verified; the remaining Task 10 data model objects are pending.
+The Application Context core milestone is complete. The full canonical Task 10 owner-side model is implemented and structurally verified: `APP_USERS`, `TODO_LISTS`, `TAGS`, `TODO_LIST_TAGS` and `TASKS`.
 
 ## Current task
 
-docs/tasks/10_data_model.md
+docs/tasks/20_security_context.md
 
 ## Approved architecture
 
@@ -109,8 +109,8 @@ TASKHUB_APP connection   : taskhub-app-mcp (verified through MCP)
 ## Open items
 
 1. Configure and document the approved `TASKHUB_API` connection before it is needed.
-2. Continue Task 10 with the remaining canonical owner-side objects.
-3. Add seed users and APP_USERS grants only in their approved later steps.
+2. Complete Task 20 runtime/test context facades and extend the trusted core to resolve `APP_USER_ID` / `APP_USERNAME` from `APP_USERS`.
+3. Add seed/test application users and cross-schema grants only in their approved task steps.
 
 ## Evidence
 
@@ -122,7 +122,33 @@ Do not store credentials in evidence.
 
 ## Exact next step
 
-Continue Task 10 with the next canonical owner-side table, `TASKHUB_OWNER.TAGS`.
+Begin Task 20 from `docs/tasks/20_security_context.md`; configure and document the approved `TASKHUB_API` connection before executing its changes.
+
+## Task 10 canonical data model
+
+Status: PASS
+
+Completed:
+- Applied `0030_create_app_users.sql` through `0070_create_tasks.sql` in dependency order.
+- Implemented the five-table owner model: `APP_USERS`, `TODO_LISTS`, `TAGS`, `TODO_LIST_TAGS`, `TASKS`.
+- Verified identity PKs, all required FKs including the TASKS self-FK, unique/check constraints, active-only normalized tag uniqueness, required indexes, defaults, nullability and comments.
+- Ran the complete structural suite `0010` through `0340`; all 34 files returned only their expected zero-row results.
+- Kept `db/deploy/install/run_all.sql` synchronized with the accepted clean-install order.
+
+Change scripts added in the completion milestone:
+- `db/changes/0050_create_tags.sql`
+- `db/changes/0060_create_todo_list_tags.sql`
+- `db/changes/0070_create_tasks.sql`
+
+Test compatibility note:
+- `0210_tags_indexes.sql` uses `DBMS_METADATA.GET_DDL` to verify function expressions without applying string operations to the legacy LONG dictionary column.
+
+Open issues:
+- No Task 10 data-model issues remain.
+- The approved `TASKHUB_API` saved connection is still not configured.
+
+Evidence:
+- `evidence/local/task10_data_model_completion_2026-09-26.md`
 
 ## APP_USERS milestone
 
