@@ -93,9 +93,12 @@ evidence/
 
 ## Current state
 
-The manual bootstrap, canonical five-table owner model, context boundary, filtered
-read-only views, Task 40 List/Tag API and Task 50 Task/Subtask API are complete.
-Task 60 is the next approved milestone and has not been started.
+The manual bootstrap and Database/API foundation through Task 60 are complete. This
+includes the canonical five-table owner model, context boundary, filtered read-only
+views, List/Tag and Task/Subtask APIs, retention-aware purge and monthly Scheduler job.
+
+Task 70 - ORDS + APEX Foundation is the next task. Its implementation has not started,
+and its architecture and execution contract must be approved before implementation.
 
 See `docs/status/CURRENT_STATUS.md`.
 

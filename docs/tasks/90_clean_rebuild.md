@@ -1,4 +1,6 @@
-# Task 80 - Clean Rebuild Gate
+# Task 90 - Clean Rebuild Gate
+
+Status: NOT STARTED
 
 ## Objective
 Prove that repository source, not accumulated database state, is sufficient to recreate the POC after manual bootstrap.

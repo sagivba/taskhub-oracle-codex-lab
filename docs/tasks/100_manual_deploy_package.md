@@ -1,4 +1,6 @@
-# Task 90 - Manual QA Deployment Package
+# Task 100 - Manual QA Deployment Package
+
+Status: NOT STARTED
 
 ## Objective
 Produce a human-reviewable SQLcl deployment package for an environment outside the Codex lab.

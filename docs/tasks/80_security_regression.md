@@ -1,4 +1,6 @@
-# Task 70 - Security and Regression Suite
+# Task 80 - Security and Regression Suite
+
+Status: NOT STARTED
 
 ## Objective
 Run the POC as an adversarial security/regression exercise, not only a happy-path functional test.

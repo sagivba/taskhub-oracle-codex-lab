@@ -2,15 +2,18 @@
 
 ## Project state
 
-Status: TASK 60 MAINTENANCE AND PURGE COMPLETE; TASKS 10, 20, 30, 40, 50 AND DOCUMENTATION HARDENING REMAIN PASS
+Status: DATABASE/API FOUNDATION THROUGH TASK 60 COMPLETE; TASK 70 ORDS + APEX FOUNDATION IS NEXT AND NOT STARTED
 
 The TaskHub Oracle lab infrastructure is running, the three database schemas have been created and validated, and the Codex + SQLcl MCP read-only acceptance test has passed.
 
-The canonical model, security context, documentation hardening, filtered views and Task 40/50 APIs remain verified. Task 60 now provides retention-aware FK-safe physical purge through an internal maintenance package and an enabled monthly Scheduler job.
+The canonical model, security context, documentation hardening, filtered views,
+List/Tag and Task/Subtask APIs, retention-aware purge and monthly Scheduler job are
+complete and verified. No Task 70 implementation or ORDS/APEX architecture decision
+has been started in this housekeeping pass.
 
 ## Current task
 
-docs/tasks/70_security_regression.md
+docs/tasks/70_ords_apex_foundation.md (next; NOT STARTED)
 
 ## Approved architecture
 
@@ -116,8 +119,9 @@ TASKHUB_APP connection   : taskhub-app-mcp (verified through MCP)
 
 ## Open items
 
-1. Task 70 full security/regression consolidation has not been started.
+1. Task 70 ORDS/APEX scope, architecture decisions, outputs, tests and stop condition must be defined and approved before implementation.
 2. Positive `TASKHUB_APP` initialization through `INIT_FROM_APEX` requires a real APEX request context; DEV identity tests remain intentionally behind the ungranted test facade.
+3. The security/regression suite, clean rebuild gate and manual QA deployment package remain valid future work as Tasks 80, 90 and 100.
 
 ## Evidence
 
@@ -129,7 +133,10 @@ Do not store credentials in evidence.
 
 ## Exact next step
 
-Begin Task 70 only when explicitly requested, using `docs/tasks/70_security_regression.md`. Preserve the completed Task 60 retention, hierarchy and least-privilege boundaries.
+Define and approve the Task 70 contract and required ORDS/APEX decisions before any
+implementation. Use `docs/tasks/70_ords_apex_foundation.md`, preserve the completed
+Task 60 Database/API and least-privilege boundaries, and do not infer architecture from
+this status-only reconciliation.
 
 ## Task 60 Maintenance and Purge
 
@@ -185,7 +192,7 @@ Completed:
 - Added only the minimal owner-to-API DML grants; `TASKHUB_APP` retains package/view access and no owner-table privilege.
 - Added changes `0220` and `0230`, canonical source/grants, install-runner entries, persistent structure/security/functional tests and synchronized documentation.
 - Verified valid package specification/body, empty affected `USER_ERRORS`, exact signatures/grants, active-only index expressions, positive and cross-user behavior, exact missing/foreign/inactive non-disclosure, caller rollback, runtime direct-DML denial and zero residual fixtures.
-- Ran focused Task 20 stale-context and Task 30 List/Tag filtered-view regressions; Task 50 was not started.
+- Ran focused Task 20 stale-context and Task 30 List/Tag filtered-view regressions before advancing beyond the Task 40 gate.
 
 Evidence:
 
@@ -250,10 +257,10 @@ Completed:
 - Verified the exact five-grant manifest and live negative behavior from `TASKHUB_APP`.
 - Verified create-list ownership/audit behavior with rollback and no residual test rows.
 
-Documentation-debt reconciliation:
+Documentation-debt follow-ups resolved by the later documentation-hardening work:
 
-- Oracle Annotation export support: not implemented or specified; recorded as follow-up.
-- PL/SQL package documentation convention: not defined; recorded as follow-up.
+- Oracle Annotation export support is implemented in `db/export/0010_annotations.sql`.
+- The PL/SQL public-contract convention is defined in `docs/database-documentation-standard.md`.
 
 Evidence:
 
@@ -295,8 +302,8 @@ Completed:
 - Verified the exact seven-column model, identity generation, defaults, constraints, indexes and comments.
 - Verified that no unexpected invalid object, redundant USERNAME index or username-normalization index was introduced.
 
-Pending:
-- Historical note: seed users, the APP_USERS lookup grant and context identity extension were delivered in Task 20.
+Subsequent work completed:
+- Seed users, the APP_USERS lookup grant and context identity extension were delivered in Task 20.
 
 Evidence:
 - `evidence/local/app_users_0030_execution_2026-09-26.md`
@@ -313,8 +320,8 @@ Completed:
 Evidence:
 - `evidence/local/todo_lists_0040_execution_2026-09-26.md`
 
-Next:
-- Continue Task 10 with `TASKHUB_OWNER.TAGS`.
+Subsequent work completed:
+- Task 10 continued through `TAGS`, `TODO_LIST_TAGS` and `TASKS` and passed its full structural gate.
 
 ## Application Context milestone
 
@@ -335,8 +342,8 @@ Security decision:
 Evidence:
 - `evidence/local/taskhub_context_milestone.txt`
 
-Next:
-- Task 30 filtered views and read-isolation gate.
+Subsequent work completed:
+- Task 30 filtered views and the read-isolation gate are complete.
 
 ## Codex + SQLcl MCP read-only acceptance
 

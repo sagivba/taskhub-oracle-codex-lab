@@ -1,5 +1,7 @@
 # Task 60 - Maintenance and Purge
 
+Status: COMPLETE
+
 ## Objective
 Implement retention-aware physical purge and the monthly scheduler job.
 
