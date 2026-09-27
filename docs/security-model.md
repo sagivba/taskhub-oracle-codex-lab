@@ -103,13 +103,20 @@ generic results. Association add/remove is idempotent, List deletion retains lin
 for later purge, and Tag deletion physically removes its links before soft deletion.
 
 Task 50 adds only `TASKS INSERT` to `TASKHUB_API`; existing `UPDATE` implements both
-ordinary updates and logical deletion, so neither API nor application schema receives
-`TASKS DELETE`. Task ownership continues to inherit through a context-owned active
+ordinary updates and logical deletion. Task ownership continues to inherit through a context-owned active
 List. Parent lookup collapses missing, foreign and inactive rows into one result, while
 a same-user parent in another List can report the same-list rule. Hierarchy validation
 combines proposed parent depth with active subtree height and rejects self-parenting,
 descendant cycles and any result beyond root/child/grandchild. Status uses canonical
 `CANCELED`; DONE state alone controls `COMPLETED_AT`.
+
+Task 60 adds non-grantable `DELETE` on `TODO_LISTS`, `TAGS` and `TASKS` only to
+`TASKHUB_API`; the association-table `DELETE` grant already exists from Task 40.
+`PKG_TASKHUB_MAINT` is an internal definer-rights boundary and is not executable by
+`TASKHUB_APP`. It removes associations before retained parents, repeatedly deletes
+eligible Task leaves before their parents because `TASKS_FK2` is immediate `NO ACTION`,
+and deletes only empty eligible Lists and unreferenced eligible Tags. The monthly job
+invokes that package instead of embedding table DML.
 
 Forbidden shortcuts include:
 
@@ -130,6 +137,10 @@ Where the specification requires it, the API must not reveal whether an ID exist
 Business API packages do not issue `COMMIT` or `ROLLBACK`. The runtime caller owns the
 transaction boundary so several approved operations can participate in one atomic
 business transaction rather than being committed independently by lower-level code.
+
+The internal maintenance package is deliberately different: its Scheduler-oriented
+purge owns one atomic transaction, commits only after every FK-safe stage succeeds and
+rolls back on error. It is not exposed to the runtime principal.
 
 Task 30 and Task 40 DEV cross-schema fixtures use a separate testing exception. Fixture setup
 as `TASKHUB_OWNER` commits so a different `TASKHUB_API` session can initialize trusted

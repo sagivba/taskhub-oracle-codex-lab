@@ -1,4 +1,4 @@
--- Test: public package documentation markers and unchanged public subprogram manifest
+-- Test: package documentation markers and exact public/internal subprogram manifest
 -- Connection/schema: TASKHUB_API
 -- Preconditions: db/changes/0180_document_api_packages.sql applied
 -- Expected result: no rows
@@ -7,7 +7,8 @@ with packages (package_name) as (
     select 'PKG_TASKHUB_CONTEXT_CORE' from dual union all
     select 'PKG_TASKHUB_CONTEXT' from dual union all
     select 'PKG_TASKHUB_TEST_CONTEXT' from dual union all
-    select 'PKG_TASKHUB_API' from dual
+    select 'PKG_TASKHUB_API' from dual union all
+    select 'PKG_TASKHUB_MAINT' from dual
 ), required_markers (marker) as (
     select 'PURPOSE' from dual union all
     select 'TRUST BOUNDARY' from dual union all
@@ -29,7 +30,8 @@ with packages (package_name) as (
     select 'PKG_TASKHUB_API', 'DELETE_TAG' from dual union all
     select 'PKG_TASKHUB_API', 'CREATE_TASK' from dual union all
     select 'PKG_TASKHUB_API', 'UPDATE_TASK' from dual union all
-    select 'PKG_TASKHUB_API', 'DELETE_TASK' from dual
+    select 'PKG_TASKHUB_API', 'DELETE_TASK' from dual union all
+    select 'PKG_TASKHUB_MAINT', 'PURGE_DELETED' from dual
 ), actual_subprograms as (
     select object_name as package_name, procedure_name
       from user_procedures
@@ -37,7 +39,8 @@ with packages (package_name) as (
                'PKG_TASKHUB_CONTEXT_CORE',
                'PKG_TASKHUB_CONTEXT',
                'PKG_TASKHUB_TEST_CONTEXT',
-               'PKG_TASKHUB_API'
+               'PKG_TASKHUB_API',
+               'PKG_TASKHUB_MAINT'
            )
        and procedure_name is not null
 ), expected_arguments (package_name, object_name, argument_name, position, data_type, in_out) as (
@@ -76,7 +79,8 @@ with packages (package_name) as (
                'PKG_TASKHUB_CONTEXT_CORE',
                'PKG_TASKHUB_CONTEXT',
                'PKG_TASKHUB_TEST_CONTEXT',
-               'PKG_TASKHUB_API'
+               'PKG_TASKHUB_API',
+               'PKG_TASKHUB_MAINT'
            )
 )
 select 'MISSING_PACKAGE_MARKER' as issue,

@@ -27,3 +27,6 @@
 @@../../changes/0230_pkg_taskhub_api_list_tag.sql
 @@../../changes/0240_grant_task_api_insert.sql
 @@../../changes/0250_pkg_taskhub_api_task_hierarchy.sql
+@@../../changes/0260_grant_maintenance_delete.sql
+@@../../changes/0270_pkg_taskhub_maint.sql
+@@../../changes/0280_create_monthly_purge_job.sql

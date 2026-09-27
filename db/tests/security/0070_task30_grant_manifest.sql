@@ -1,6 +1,6 @@
--- Test: exact cumulative direct object-grant manifest through Task 50
+-- Test: exact cumulative direct object-grant manifest through Task 60
 -- Connection/schema: TASKHUB_API
--- Preconditions: changes 0190 through 0250 applied
+-- Preconditions: changes 0190 through 0280 applied
 -- Expected result: no rows
 
 with expected_grants (table_schema, table_name, grantee, privilege, grantable) as (
@@ -8,15 +8,18 @@ with expected_grants (table_schema, table_name, grantee, privilege, grantable) a
     select 'TASKHUB_OWNER', 'TODO_LISTS',         'TASKHUB_API', 'INSERT',  'NO' from dual union all
     select 'TASKHUB_OWNER', 'TODO_LISTS',         'TASKHUB_API', 'SELECT',  'YES' from dual union all
     select 'TASKHUB_OWNER', 'TODO_LISTS',         'TASKHUB_API', 'UPDATE',  'NO' from dual union all
+    select 'TASKHUB_OWNER', 'TODO_LISTS',         'TASKHUB_API', 'DELETE',  'NO' from dual union all
     select 'TASKHUB_OWNER', 'TAGS',               'TASKHUB_API', 'SELECT',  'YES' from dual union all
     select 'TASKHUB_OWNER', 'TAGS',               'TASKHUB_API', 'INSERT',  'NO' from dual union all
     select 'TASKHUB_OWNER', 'TAGS',               'TASKHUB_API', 'UPDATE',  'NO' from dual union all
+    select 'TASKHUB_OWNER', 'TAGS',               'TASKHUB_API', 'DELETE',  'NO' from dual union all
     select 'TASKHUB_OWNER', 'TODO_LIST_TAGS',     'TASKHUB_API', 'SELECT',  'YES' from dual union all
     select 'TASKHUB_OWNER', 'TODO_LIST_TAGS',     'TASKHUB_API', 'INSERT',  'NO' from dual union all
     select 'TASKHUB_OWNER', 'TODO_LIST_TAGS',     'TASKHUB_API', 'DELETE',  'NO' from dual union all
     select 'TASKHUB_OWNER', 'TASKS',              'TASKHUB_API', 'SELECT',  'YES' from dual union all
     select 'TASKHUB_OWNER', 'TASKS',              'TASKHUB_API', 'INSERT',  'NO' from dual union all
     select 'TASKHUB_OWNER', 'TASKS',              'TASKHUB_API', 'UPDATE',  'NO' from dual union all
+    select 'TASKHUB_OWNER', 'TASKS',              'TASKHUB_API', 'DELETE',  'NO' from dual union all
     select 'TASKHUB_API',   'PKG_TASKHUB_API',    'TASKHUB_APP', 'EXECUTE', 'NO' from dual union all
     select 'TASKHUB_API',   'PKG_TASKHUB_CONTEXT','TASKHUB_APP', 'EXECUTE', 'NO' from dual union all
     select 'TASKHUB_API',   'V_TODO_LISTS',       'TASKHUB_APP', 'SELECT',  'NO' from dual union all

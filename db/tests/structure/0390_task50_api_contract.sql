@@ -56,10 +56,10 @@ select 'TRANSACTION_CONTROL_IN_API_BODY' as issue,
    and type = 'PACKAGE BODY'
    and regexp_like(upper(text), '(^|[^A-Z_])(COMMIT|ROLLBACK)([^A-Z_]|$)');
 
-select 'UNEXPECTED_TASKS_DELETE_GRANT' as issue,
+select 'UNEXPECTED_APP_TASKS_DELETE_GRANT' as issue,
        grantee as detail
   from all_tab_privs
  where table_schema = 'TASKHUB_OWNER'
    and table_name = 'TASKS'
    and privilege = 'DELETE'
-   and grantee in ('TASKHUB_API', 'TASKHUB_APP');
+   and grantee = 'TASKHUB_APP';

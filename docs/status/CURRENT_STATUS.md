@@ -2,15 +2,15 @@
 
 ## Project state
 
-Status: TASK 50 TASK/SUBTASK API COMPLETE; TASKS 10, 20, 30, 40 AND DOCUMENTATION HARDENING REMAIN PASS
+Status: TASK 60 MAINTENANCE AND PURGE COMPLETE; TASKS 10, 20, 30, 40, 50 AND DOCUMENTATION HARDENING REMAIN PASS
 
 The TaskHub Oracle lab infrastructure is running, the three database schemas have been created and validated, and the Codex + SQLcl MCP read-only acceptance test has passed.
 
-The canonical model, security context, documentation hardening, filtered views and Task 40 List/Tag API remain verified. Task 50 now exposes context-owned Task create/update/subtree-delete behavior with bounded hierarchy, lifecycle, audit, non-disclosure and exact least-privilege grants.
+The canonical model, security context, documentation hardening, filtered views and Task 40/50 APIs remain verified. Task 60 now provides retention-aware FK-safe physical purge through an internal maintenance package and an enabled monthly Scheduler job.
 
 ## Current task
 
-docs/tasks/60_maintenance.md
+docs/tasks/70_security_regression.md
 
 ## Approved architecture
 
@@ -89,11 +89,12 @@ Verified:
 - `TASKHUB_OWNER.TAGS`: `SELECT WITH GRANT OPTION`, `INSERT`, `UPDATE` to `TASKHUB_API`;
 - `TASKHUB_OWNER.TODO_LIST_TAGS`: `SELECT WITH GRANT OPTION`, `INSERT`, `DELETE` to `TASKHUB_API`;
 - `TASKHUB_OWNER.TASKS`: `SELECT WITH GRANT OPTION`, `INSERT`, `UPDATE` to `TASKHUB_API`;
+- `TASKHUB_OWNER.TODO_LISTS`, `TAGS`, `TASKS`: `DELETE` to `TASKHUB_API` for internal maintenance;
 - `TASKHUB_API.PKG_TASKHUB_CONTEXT`: `EXECUTE` to `TASKHUB_APP`;
 - `TASKHUB_API.PKG_TASKHUB_API`: `EXECUTE` to `TASKHUB_APP`;
 - `TASKHUB_API.V_TODO_LISTS`, `V_TODO_LIST_TAGS`, `V_TASKS`, `V_TASK_TREE`: `SELECT` to `TASKHUB_APP`;
 - no owner-table privilege to `TASKHUB_APP`;
-- no `TASKHUB_APP` execution privilege on context core/test packages.
+- no `TASKHUB_APP` execution privilege on context core/test/maintenance packages.
 
 ## Oracle validation
 
@@ -115,7 +116,7 @@ TASKHUB_APP connection   : taskhub-app-mcp (verified through MCP)
 
 ## Open items
 
-1. Task 60 requires retention-based hierarchy-safe purge and scheduler maintenance; it has not been started.
+1. Task 70 full security/regression consolidation has not been started.
 2. Positive `TASKHUB_APP` initialization through `INIT_FROM_APEX` requires a real APEX request context; DEV identity tests remain intentionally behind the ungranted test facade.
 
 ## Evidence
@@ -128,7 +129,27 @@ Do not store credentials in evidence.
 
 ## Exact next step
 
-Begin Task 60 only when explicitly requested, using `docs/tasks/60_maintenance.md`. Preserve the completed Task 50 hierarchy/lifecycle API and exact grant boundary.
+Begin Task 70 only when explicitly requested, using `docs/tasks/70_security_regression.md`. Preserve the completed Task 60 retention, hierarchy and least-privilege boundaries.
+
+## Task 60 Maintenance and Purge
+
+Status: PASS (2026-09-27)
+
+Completed:
+
+- Added internal definer-rights `TASKHUB_API.PKG_TASKHUB_MAINT.PURGE_DELETED` using the canonical `deleted_at < systimestamp - interval '30' day` retention rule.
+- Purges associations first, then eligible Task leaves in repeated passes, then eligible empty Lists and unreferenced eligible Tags; newer children safely retain older parents.
+- Added enabled `JOB_TASKHUB_PURGE_MONTHLY` as a `STORED_PROCEDURE` job for the first day of each month at 02:00, invoking the maintenance package without embedded purge SQL.
+- Added only non-grantable `TODO_LISTS`, `TAGS` and `TASKS DELETE` grants to `TASKHUB_API`; `TASKHUB_APP` retains no owner-table privilege and no maintenance-package execution.
+- Preserved the exact Task 20/30/40/50 public package signatures and existing runtime grants.
+- Added changes `0260` through `0280`, canonical package/job/grant source, generated install-runner entries and persistent structure/security/maintenance tests.
+- Verified retention preservation, association-first deletion, two three-level hierarchy purges, mixed-age hierarchy safety, List/Tag referential integrity, repeatable final state and zero residual fixtures.
+- Verified valid package objects, empty package errors, exact Scheduler metadata, enabled constraints, valid indexes, complete comments, exact grants, no broad `ANY` privileges and restricted-runtime negative behavior.
+- Ran Task 20 context switching, Task 20 create-list, Task 50 positive/negative and Task 30/40/50 runtime-security regressions successfully.
+
+Evidence:
+
+- `evidence/local/task60_maintenance_purge_2026-09-27.md`
 
 ## Task 50 Task and Subtask API
 
@@ -143,7 +164,7 @@ Completed:
 - Added only `TASKS INSERT` to `TASKHUB_API`; logical deletion continues through existing `UPDATE`, and `TASKHUB_APP` retains no owner-table privilege.
 - Added changes `0240` and `0250`, canonical source/grants, install-runner entries and persistent structure/security/functional tests.
 - Verified valid package specification/body, empty affected `USER_ERRORS`, exact defaults/signatures/grants, positive and negative hierarchy behavior, non-disclosure, lifecycle, priority order, audit, filtered views, caller rollback and zero residual rows.
-- Ran focused Task 20 context, Task 30 filtered-read, Task 40 List/Tag and restricted-runtime regressions; Task 60 was not started.
+- Ran focused Task 20 context, Task 30 filtered-read, Task 40 List/Tag and restricted-runtime regressions before advancing beyond the Task 50 gate.
 - Existing TASKS comments and annotations already document ownership, same-List hierarchy, cycle/depth validation, lifecycle, priority and context-derived audit, so no owner metadata DDL was necessary.
 
 Evidence:
