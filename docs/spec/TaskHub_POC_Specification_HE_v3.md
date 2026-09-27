@@ -1029,15 +1029,23 @@ procedure remove_tag_from_list (
 
 ```plsql
 procedure delete_tag (
-    p_tag_id in number
+    p_tag_name in varchar2
 );
 ```
 
-אם Tag אינו קיים אצל המשתמש, `ADD_TAG_TO_LIST` יכול ליצור אותו.
+זהות לוגית של Tag היא `APP_USER_ID + UPPER(TRIM(TAG_NAME))`. אם Tag פעיל
+אינו קיים אצל המשתמש, `ADD_TAG_TO_LIST` יוצר row חדש עם השם התצוגתי לאחר
+`TRIM`; הוא אינו מחייה row היסטורי שנמחק. יצירת Tag מתחרה מוכרעת על ידי
+ה-unique index הפעיל בלבד, והוספת Association קיים היא no-op מוצלח.
 
 `REMOVE_TAG_FROM_LIST` מסיר את ה-Association ב-`TODO_LIST_TAGS`. מאחר של-Association אין Soft Delete בשלב ה-POC, ההסרה יכולה להיות Physical Delete של row הקישור בלבד.
 
-`DELETE_TAG` מבצע Soft Delete ל-Tag עצמו לאחר Ownership check. Associations קיימים יכולים להישאר עד Purge, אך אינם מוצגים ב-Views כאשר ה-Tag Soft Deleted.
+`DELETE_TAG` מאתר Tag פעיל לפי המשתמש ב-Context והשם המנורמל, מסיר פיזית את
+כל ה-Associations שלו, ואז מבצע Soft Delete ל-Tag. Tag חסר, Tag של משתמש אחר
+ו-Tag שקיים רק כהיסטוריה מחוקה מחזירים אותה שגיאה כללית כדי לא לחשוף קיום.
+
+כל פעולות ה-List וה-Tag מפיקות Identity ו-Audit רק מ-`TASKHUB_CTX`, אינן
+מבצעות `COMMIT` או `ROLLBACK`, ומשאירות את גבול ה-Transaction ל-caller.
 
 ## 20.3 Task API
 

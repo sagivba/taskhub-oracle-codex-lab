@@ -1,15 +1,21 @@
--- Test: exact Task 20 plus Task 30 direct object-grant manifest
+-- Test: exact cumulative direct object-grant manifest through Task 40
 -- Connection/schema: TASKHUB_API
--- Preconditions: changes 0190 through 0210 applied
+-- Preconditions: changes 0190 through 0230 applied
 -- Expected result: no rows
 
 with expected_grants (table_schema, table_name, grantee, privilege, grantable) as (
     select 'TASKHUB_OWNER', 'APP_USERS',          'TASKHUB_API', 'SELECT',  'NO' from dual union all
     select 'TASKHUB_OWNER', 'TODO_LISTS',         'TASKHUB_API', 'INSERT',  'NO' from dual union all
     select 'TASKHUB_OWNER', 'TODO_LISTS',         'TASKHUB_API', 'SELECT',  'YES' from dual union all
+    select 'TASKHUB_OWNER', 'TODO_LISTS',         'TASKHUB_API', 'UPDATE',  'NO' from dual union all
     select 'TASKHUB_OWNER', 'TAGS',               'TASKHUB_API', 'SELECT',  'YES' from dual union all
+    select 'TASKHUB_OWNER', 'TAGS',               'TASKHUB_API', 'INSERT',  'NO' from dual union all
+    select 'TASKHUB_OWNER', 'TAGS',               'TASKHUB_API', 'UPDATE',  'NO' from dual union all
     select 'TASKHUB_OWNER', 'TODO_LIST_TAGS',     'TASKHUB_API', 'SELECT',  'YES' from dual union all
+    select 'TASKHUB_OWNER', 'TODO_LIST_TAGS',     'TASKHUB_API', 'INSERT',  'NO' from dual union all
+    select 'TASKHUB_OWNER', 'TODO_LIST_TAGS',     'TASKHUB_API', 'DELETE',  'NO' from dual union all
     select 'TASKHUB_OWNER', 'TASKS',              'TASKHUB_API', 'SELECT',  'YES' from dual union all
+    select 'TASKHUB_OWNER', 'TASKS',              'TASKHUB_API', 'UPDATE',  'NO' from dual union all
     select 'TASKHUB_API',   'PKG_TASKHUB_API',    'TASKHUB_APP', 'EXECUTE', 'NO' from dual union all
     select 'TASKHUB_API',   'PKG_TASKHUB_CONTEXT','TASKHUB_APP', 'EXECUTE', 'NO' from dual union all
     select 'TASKHUB_API',   'V_TODO_LISTS',       'TASKHUB_APP', 'SELECT',  'NO' from dual union all

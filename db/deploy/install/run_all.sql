@@ -23,3 +23,5 @@
 @@../../changes/0190_grant_read_view_sources.sql
 @@../../changes/0200_create_read_isolation_views.sql
 @@../../changes/0210_grant_read_isolation_views.sql
+@@../../changes/0220_grant_list_tag_api_dml.sql
+@@../../changes/0230_pkg_taskhub_api_list_tag.sql

@@ -21,7 +21,12 @@ with packages (package_name) as (
     select 'PKG_TASKHUB_CONTEXT', 'CLEAR_CONTEXT' from dual union all
     select 'PKG_TASKHUB_TEST_CONTEXT', 'INIT_FOR_TEST' from dual union all
     select 'PKG_TASKHUB_TEST_CONTEXT', 'CLEAR_CONTEXT' from dual union all
-    select 'PKG_TASKHUB_API', 'CREATE_LIST' from dual
+    select 'PKG_TASKHUB_API', 'CREATE_LIST' from dual union all
+    select 'PKG_TASKHUB_API', 'UPDATE_LIST' from dual union all
+    select 'PKG_TASKHUB_API', 'DELETE_LIST' from dual union all
+    select 'PKG_TASKHUB_API', 'ADD_TAG_TO_LIST' from dual union all
+    select 'PKG_TASKHUB_API', 'REMOVE_TAG_FROM_LIST' from dual union all
+    select 'PKG_TASKHUB_API', 'DELETE_TAG' from dual
 ), actual_subprograms as (
     select object_name as package_name, procedure_name
       from user_procedures
@@ -36,7 +41,15 @@ with packages (package_name) as (
     select 'PKG_TASKHUB_CONTEXT_CORE', 'INITIALIZE_CONTEXT', 'P_USERNAME', 1, 'VARCHAR2', 'IN' from dual union all
     select 'PKG_TASKHUB_TEST_CONTEXT', 'INIT_FOR_TEST', 'P_USERNAME', 1, 'VARCHAR2', 'IN' from dual union all
     select 'PKG_TASKHUB_API', 'CREATE_LIST', cast(null as varchar2(128)), 0, 'NUMBER', 'OUT' from dual union all
-    select 'PKG_TASKHUB_API', 'CREATE_LIST', 'P_LIST_NAME', 1, 'VARCHAR2', 'IN' from dual
+    select 'PKG_TASKHUB_API', 'CREATE_LIST', 'P_LIST_NAME', 1, 'VARCHAR2', 'IN' from dual union all
+    select 'PKG_TASKHUB_API', 'UPDATE_LIST', 'P_LIST_ID', 1, 'NUMBER', 'IN' from dual union all
+    select 'PKG_TASKHUB_API', 'UPDATE_LIST', 'P_LIST_NAME', 2, 'VARCHAR2', 'IN' from dual union all
+    select 'PKG_TASKHUB_API', 'DELETE_LIST', 'P_LIST_ID', 1, 'NUMBER', 'IN' from dual union all
+    select 'PKG_TASKHUB_API', 'ADD_TAG_TO_LIST', 'P_LIST_ID', 1, 'NUMBER', 'IN' from dual union all
+    select 'PKG_TASKHUB_API', 'ADD_TAG_TO_LIST', 'P_TAG_NAME', 2, 'VARCHAR2', 'IN' from dual union all
+    select 'PKG_TASKHUB_API', 'REMOVE_TAG_FROM_LIST', 'P_LIST_ID', 1, 'NUMBER', 'IN' from dual union all
+    select 'PKG_TASKHUB_API', 'REMOVE_TAG_FROM_LIST', 'P_TAG_NAME', 2, 'VARCHAR2', 'IN' from dual union all
+    select 'PKG_TASKHUB_API', 'DELETE_TAG', 'P_TAG_NAME', 1, 'VARCHAR2', 'IN' from dual
 ), actual_arguments as (
     select package_name, object_name, argument_name, position, data_type, in_out
       from user_arguments

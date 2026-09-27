@@ -93,7 +93,9 @@ evidence/
 
 ## Current state
 
-The manual bootstrap, canonical five-table owner model and Task 20 context boundary are complete. The minimal `CREATE_LIST` API slice is implemented; Task 30 filtered views remain next in the approved task order.
+The manual bootstrap, canonical five-table owner model, context boundary, filtered
+read-only views and Task 40 List/Tag API are complete. Task 50 is the next approved
+milestone and has not been started.
 
 See `docs/status/CURRENT_STATUS.md`.
 

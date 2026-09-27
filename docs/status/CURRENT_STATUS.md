@@ -2,15 +2,15 @@
 
 ## Project state
 
-Status: TASK 30 READ ISOLATION COMPLETE; TASK 10, TASK 20 AND DOCUMENTATION HARDENING REMAIN PASS
+Status: TASK 40 LIST/TAG API COMPLETE; TASKS 10, 20, 30 AND DOCUMENTATION HARDENING REMAIN PASS
 
 The TaskHub Oracle lab infrastructure is running, the three database schemas have been created and validated, and the Codex + SQLcl MCP read-only acceptance test has passed.
 
-The canonical Task 10 model, Task 20 security context/create-list slice and documentation hardening remain verified. Task 30 now exposes four context-filtered, soft-delete-aware, read-only views with exact application grants and live Alice/Bob isolation tests.
+The canonical model, security context, documentation hardening and filtered read views remain verified. Task 40 now exposes context-owned List update/delete and normalized Tag association lifecycle operations through the definer-rights API with exact grants and deterministic Alice/Bob tests.
 
 ## Current task
 
-docs/tasks/40_list_tag_api.md
+docs/tasks/50_task_api.md
 
 ## Approved architecture
 
@@ -85,7 +85,10 @@ Verified:
 - no broad `ANY` system privileges or roles were added;
 - `TASKHUB_OWNER.APP_USERS`: `SELECT` to `TASKHUB_API`;
 - `TASKHUB_OWNER.TODO_LISTS`: `SELECT WITH GRANT OPTION`, `INSERT` to `TASKHUB_API`;
-- `TASKHUB_OWNER.TAGS`, `TODO_LIST_TAGS`, `TASKS`: `SELECT WITH GRANT OPTION` to `TASKHUB_API`;
+- `TASKHUB_OWNER.TODO_LISTS`: `UPDATE` to `TASKHUB_API`;
+- `TASKHUB_OWNER.TAGS`: `SELECT WITH GRANT OPTION`, `INSERT`, `UPDATE` to `TASKHUB_API`;
+- `TASKHUB_OWNER.TODO_LIST_TAGS`: `SELECT WITH GRANT OPTION`, `INSERT`, `DELETE` to `TASKHUB_API`;
+- `TASKHUB_OWNER.TASKS`: `SELECT WITH GRANT OPTION`, `UPDATE` to `TASKHUB_API`;
 - `TASKHUB_API.PKG_TASKHUB_CONTEXT`: `EXECUTE` to `TASKHUB_APP`;
 - `TASKHUB_API.PKG_TASKHUB_API`: `EXECUTE` to `TASKHUB_APP`;
 - `TASKHUB_API.V_TODO_LISTS`, `V_TODO_LIST_TAGS`, `V_TASKS`, `V_TASK_TREE`: `SELECT` to `TASKHUB_APP`;
@@ -112,7 +115,7 @@ TASKHUB_APP connection   : taskhub-app-mcp (verified through MCP)
 
 ## Open items
 
-1. Task 40 requires list update/delete and all tag operations, ownership/non-disclosure behavior and full CRUD tests.
+1. Task 50 requires Task hierarchy and lifecycle write operations; it has not been started.
 2. Positive `TASKHUB_APP` initialization through `INIT_FROM_APEX` requires a real APEX request context; DEV identity tests remain intentionally behind the ungranted test facade.
 
 ## Evidence
@@ -125,7 +128,27 @@ Do not store credentials in evidence.
 
 ## Exact next step
 
-Begin Task 40 from `docs/tasks/40_list_tag_api.md`. Preserve the Task 30 view filters and exact grant boundary while adding only the approved list/tag write operations.
+Begin Task 50 only when explicitly requested, using `docs/tasks/50_task_api.md`. Preserve the completed Task 40 List/Tag API and exact grant boundary.
+
+## Task 40 List and Tag API
+
+Status: PASS (2026-09-27)
+
+Completed:
+
+- Preserved `CREATE_LIST` and added `UPDATE_LIST`, `DELETE_LIST`, `ADD_TAG_TO_LIST`, `REMOVE_TAG_FROM_LIST` and name-based `DELETE_TAG` to `PKG_TASKHUB_API`.
+- Derived ownership and audit identity only from validated `TASKHUB_CTX`; no public routine accepts an application-user or audit-user ID.
+- Implemented generic non-disclosing List/Tag errors for missing, foreign and soft-deleted objects.
+- Preserved active-only normalized Tag uniqueness, handled concurrent create with unique-index arbitration, and made association add/remove idempotent.
+- Soft-deleted Lists plus their active Tasks, retained List associations for filtered-view hiding, and physically removed Tag associations before soft-deleting Tags.
+- Added only the minimal owner-to-API DML grants; `TASKHUB_APP` retains package/view access and no owner-table privilege.
+- Added changes `0220` and `0230`, canonical source/grants, install-runner entries, persistent structure/security/functional tests and synchronized documentation.
+- Verified valid package specification/body, empty affected `USER_ERRORS`, exact signatures/grants, active-only index expressions, positive and cross-user behavior, exact missing/foreign/inactive non-disclosure, caller rollback, runtime direct-DML denial and zero residual fixtures.
+- Ran focused Task 20 stale-context and Task 30 List/Tag filtered-view regressions; Task 50 was not started.
+
+Evidence:
+
+- `evidence/local/task40_list_tag_api_2026-09-27.md`
 
 ## Task 30 read isolation
 

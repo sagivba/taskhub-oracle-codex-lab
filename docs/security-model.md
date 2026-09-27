@@ -94,6 +94,14 @@ context and enforce business authorization. `TASKHUB_API` receives only direct o
 privileges required by stored code because role privileges do not satisfy
 definer-rights compilation and broader grants would weaken the boundary.
 
+Task 40 adds only `TODO_LISTS UPDATE`, `TAGS INSERT/UPDATE`,
+`TODO_LIST_TAGS INSERT/DELETE` and `TASKS UPDATE` to `TASKHUB_API`. Tag identity is
+the current context user plus `UPPER(TRIM(TAG_NAME))`; the active-only unique index is
+the concurrency authority and lets deleted names be recreated as new rows. List and
+Tag lookup errors deliberately collapse missing, foreign and inactive objects into
+generic results. Association add/remove is idempotent, List deletion retains link rows
+for later purge, and Tag deletion physically removes its links before soft deletion.
+
 Forbidden shortcuts include:
 
 ```text
@@ -114,7 +122,7 @@ Business API packages do not issue `COMMIT` or `ROLLBACK`. The runtime caller ow
 transaction boundary so several approved operations can participate in one atomic
 business transaction rather than being committed independently by lower-level code.
 
-Task 30 DEV read-isolation fixtures use a separate testing exception. Fixture setup
+Task 30 and Task 40 DEV cross-schema fixtures use a separate testing exception. Fixture setup
 as `TASKHUB_OWNER` commits so a different `TASKHUB_API` session can initialize trusted
 context and verify the views; FK-safe owner cleanup then commits and proves zero
 residual prefixed rows. This cross-session test orchestration does not execute through
