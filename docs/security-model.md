@@ -79,6 +79,13 @@ This is required because SQLcl, MCP and future pools can reuse database sessions
 
 `TASKHUB_OWNER -> TASKHUB_API` uses direct object grants required for stored-code compilation and runtime.
 
+For the four Task 30 view sources (`TODO_LISTS`, `TAGS`, `TODO_LIST_TAGS` and
+`TASKS`), the direct `SELECT` grants include object-specific `WITH GRANT OPTION`.
+Oracle requires that delegation authority before `TASKHUB_API` can grant its views to
+`TASKHUB_APP`. The exception is deliberately limited to these four `SELECT` grants:
+it adds no DML, no `ANY` privilege and no direct owner-table privilege for
+`TASKHUB_APP`.
+
 `TASKHUB_API -> TASKHUB_APP` exposes only the approved API and filtered views.
 
 `TASKHUB_APP` deliberately receives no direct owner-table DML. The restriction forces
@@ -106,3 +113,9 @@ Where the specification requires it, the API must not reveal whether an ID exist
 Business API packages do not issue `COMMIT` or `ROLLBACK`. The runtime caller owns the
 transaction boundary so several approved operations can participate in one atomic
 business transaction rather than being committed independently by lower-level code.
+
+Task 30 DEV read-isolation fixtures use a separate testing exception. Fixture setup
+as `TASKHUB_OWNER` commits so a different `TASKHUB_API` session can initialize trusted
+context and verify the views; FK-safe owner cleanup then commits and proves zero
+residual prefixed rows. This cross-session test orchestration does not execute through
+or alter the transaction contract of `PKG_TASKHUB_API`.

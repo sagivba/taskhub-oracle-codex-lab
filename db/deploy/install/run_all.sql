@@ -20,3 +20,6 @@
 @@../../changes/0160_grant_create_list_api.sql
 @@../../changes/0170_document_owner_objects.sql
 @@../../changes/0180_document_api_packages.sql
+@@../../changes/0190_grant_read_view_sources.sql
+@@../../changes/0200_create_read_isolation_views.sql
+@@../../changes/0210_grant_read_isolation_views.sql

@@ -920,7 +920,18 @@ TODO_LISTS      : SELECT, INSERT, UPDATE, DELETE
 TAGS            : SELECT, INSERT, UPDATE, DELETE
 TODO_LIST_TAGS  : SELECT, INSERT, UPDATE, DELETE
 TASKS           : SELECT, INSERT, UPDATE, DELETE</code></pre>
-<p>אין לתת <code>WITH GRANT OPTION</code>.</p>
+<p>ככלל אין לתת <code>WITH GRANT OPTION</code>.</p>
+<p>חריג מאושר עבור Views של Task 30: Oracle דורש Grant Option על אובייקטי
+המקור לפני שבעל ה-View יכול להעניק עליו <code>SELECT</code>
+(<code>ORA-01720</code>). לכן מותר <code>SELECT WITH GRANT OPTION</code>
+מ-<code>TASKHUB_OWNER</code> ל-<code>TASKHUB_API</code> רק על:</p>
+<pre class="text"><code>TODO_LISTS
+TAGS
+TODO_LIST_TAGS
+TASKS</code></pre>
+<p>החריג אינו כולל DML, אינו חל על <code>APP_USERS</code>, אינו מעניק גישה
+ישירה ל-<code>TASKHUB_APP</code>, ואינו מתיר Privileges נוספים מסוג Grant
+Option.</p>
 <p>אין לתת Privileges מסוג <code>ANY</code>.</p>
 <h2 id="272-grants-מ-taskhub_api-ל-taskhub_app">27.2 Grants
 מ-<code>TASKHUB_API</code> ל-<code>TASKHUB_APP</code></h2>

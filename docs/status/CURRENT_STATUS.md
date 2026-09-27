@@ -2,15 +2,15 @@
 
 ## Project state
 
-Status: DOCUMENTATION HARDENING COMPLETE; TASK 20 AND CREATE-LIST API SLICE REMAIN PASS
+Status: TASK 30 READ ISOLATION COMPLETE; TASK 10, TASK 20 AND DOCUMENTATION HARDENING REMAIN PASS
 
 The TaskHub Oracle lab infrastructure is running, the three database schemas have been created and validated, and the Codex + SQLcl MCP read-only acceptance test has passed.
 
-The full canonical Task 10 owner-side model is implemented and structurally verified. Task 20 has validated runtime/test context facades and least-privilege grants. Documentation hardening now adds structured Oracle Annotations, WHAT/WHY package contracts and annotation export without changing public APIs, privileges or business behavior.
+The canonical Task 10 model, Task 20 security context/create-list slice and documentation hardening remain verified. Task 30 now exposes four context-filtered, soft-delete-aware, read-only views with exact application grants and live Alice/Bob isolation tests.
 
 ## Current task
 
-docs/tasks/30_views.md
+docs/tasks/40_list_tag_api.md
 
 ## Approved architecture
 
@@ -84,9 +84,11 @@ Verified:
 
 - no broad `ANY` system privileges or roles were added;
 - `TASKHUB_OWNER.APP_USERS`: `SELECT` to `TASKHUB_API`;
-- `TASKHUB_OWNER.TODO_LISTS`: `SELECT`, `INSERT` to `TASKHUB_API`;
+- `TASKHUB_OWNER.TODO_LISTS`: `SELECT WITH GRANT OPTION`, `INSERT` to `TASKHUB_API`;
+- `TASKHUB_OWNER.TAGS`, `TODO_LIST_TAGS`, `TASKS`: `SELECT WITH GRANT OPTION` to `TASKHUB_API`;
 - `TASKHUB_API.PKG_TASKHUB_CONTEXT`: `EXECUTE` to `TASKHUB_APP`;
 - `TASKHUB_API.PKG_TASKHUB_API`: `EXECUTE` to `TASKHUB_APP`;
+- `TASKHUB_API.V_TODO_LISTS`, `V_TODO_LIST_TAGS`, `V_TASKS`, `V_TASK_TREE`: `SELECT` to `TASKHUB_APP`;
 - no owner-table privilege to `TASKHUB_APP`;
 - no `TASKHUB_APP` execution privilege on context core/test packages.
 
@@ -110,9 +112,8 @@ TASKHUB_APP connection   : taskhub-app-mcp (verified through MCP)
 
 ## Open items
 
-1. Task 30 filtered read-only views remain next in the approved task order.
-2. Task 40 still requires list update/delete and all tag operations, ownership/non-disclosure behavior and full CRUD tests.
-3. Positive `TASKHUB_APP` initialization through `INIT_FROM_APEX` requires a real APEX request context; DEV identity tests remain intentionally behind the ungranted test facade.
+1. Task 40 requires list update/delete and all tag operations, ownership/non-disclosure behavior and full CRUD tests.
+2. Positive `TASKHUB_APP` initialization through `INIT_FROM_APEX` requires a real APEX request context; DEV identity tests remain intentionally behind the ungranted test facade.
 
 ## Evidence
 
@@ -124,7 +125,32 @@ Do not store credentials in evidence.
 
 ## Exact next step
 
-Begin Task 30 from `docs/tasks/30_views.md`. Do not expand the remaining Task 40 API before the Task 30 view gate passes.
+Begin Task 40 from `docs/tasks/40_list_tag_api.md`. Preserve the Task 30 view filters and exact grant boundary while adding only the approved list/tag write operations.
+
+## Task 30 read isolation
+
+Status: PASS (2026-09-27)
+
+Completed:
+
+- Added `V_TODO_LISTS`, `V_TODO_LIST_TAGS`, `V_TASKS` and `V_TASK_TREE` under `TASKHUB_API`, all explicitly `WITH READ ONLY`.
+- Derived identity only from `TASKHUB_CTX.APP_USER_ID`; missing context returns zero rows.
+- Filtered soft-deleted lists, tags and tasks and made list/tag associations fail closed on owner mismatch.
+- Built the task hierarchy from the prefiltered task dataset and exposed only depth 0 through 3.
+- Added numbered changes `0190` through `0210`, canonical view/grant source, persistent structure/security/functional tests and generated install-runner entries.
+- Granted `TASKHUB_APP` only `SELECT` on the four views; direct owner-table reads and all view DML remain denied.
+- Verified four valid views, empty affected `USER_ERRORS`, exact grants, no broad `ANY` privileges and passing Task 10/20 regressions.
+- Verified Alice/Bob isolation, same-session Alice-to-Bob reinitialization, soft-delete behavior, cross-owner association defense, tree isolation/depth and missing-context behavior.
+- Used the approved bounded cross-schema fixture exception: uniquely prefixed setup committed for API-session visibility, FK-safe cleanup committed, and final residual rows equaled zero. Application API transaction behavior was unchanged.
+
+Approved Oracle grant exception:
+
+- Oracle returned `ORA-01720` when `TASKHUB_API` attempted to delegate its views without grant option on their sources.
+- The approved resolution grants object-specific `SELECT WITH GRANT OPTION` only on `TODO_LISTS`, `TAGS`, `TODO_LIST_TAGS` and `TASKS` to `TASKHUB_API`; it adds no DML, `ANY` privilege or application table access.
+
+Evidence:
+
+- `evidence/local/task30_read_isolation_2026-09-27.md`
 
 ## Documentation hardening
 

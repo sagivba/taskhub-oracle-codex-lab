@@ -1299,7 +1299,21 @@ TODO_LIST_TAGS  : SELECT, INSERT, UPDATE, DELETE
 TASKS           : SELECT, INSERT, UPDATE, DELETE
 ```
 
-אין לתת `WITH GRANT OPTION`.
+ככלל אין לתת `WITH GRANT OPTION`.
+
+חריג מאושר עבור Views של Task 30: Oracle דורש Grant Option על אובייקטי המקור
+לפני שבעל ה-View יכול להעניק עליו `SELECT` (`ORA-01720`). לכן מותר
+`SELECT WITH GRANT OPTION` מ-`TASKHUB_OWNER` ל-`TASKHUB_API` רק על:
+
+```text
+TODO_LISTS
+TAGS
+TODO_LIST_TAGS
+TASKS
+```
+
+החריג אינו כולל DML, אינו חל על `APP_USERS`, אינו מעניק גישה ישירה
+ל-`TASKHUB_APP`, ואינו מתיר Privileges נוספים מסוג Grant Option.
 
 אין לתת Privileges מסוג `ANY`.
 
