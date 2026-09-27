@@ -14,6 +14,7 @@ docs/status/CURRENT_STATUS.md
 docs/spec/TaskHub_POC_Specification_HE_v3.md
 docs/architecture.md
 docs/security-model.md
+docs/database-documentation-standard.md
 docs/task_order.md
 ```
 
@@ -31,7 +32,7 @@ TASKHUB_API
 TASKHUB_OWNER
 ```
 
-- `TASKHUB_OWNER`: tables, constraints, indexes and comments.
+- `TASKHUB_OWNER`: tables, constraints, indexes, comments and structured annotations.
 - `TASKHUB_API`: packages, filtered read-only views, context code and maintenance job.
 - `TASKHUB_APP`: future APEX parsing schema with only approved interface privileges.
 
@@ -84,6 +85,7 @@ db/
     security/
   changes/
   deploy/
+  export/
   tests/
 scripts/
 evidence/
@@ -91,7 +93,7 @@ evidence/
 
 ## Current state
 
-No application database objects are implemented in this starter bundle. The first active step is manual lab bootstrap.
+The manual bootstrap, canonical five-table owner model and Task 20 context boundary are complete. The minimal `CREATE_LIST` API slice is implemented; Task 30 filtered views remain next in the approved task order.
 
 See `docs/status/CURRENT_STATUS.md`.
 

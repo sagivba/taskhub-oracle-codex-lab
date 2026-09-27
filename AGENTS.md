@@ -150,6 +150,8 @@ Identity-sensitive tests and MCP flows must be deterministic:
 
 - Every table must have a `COMMENT ON TABLE` statement.
 - Every business column must have a `COMMENT ON COLUMN` statement.
+- Follow `docs/database-documentation-standard.md` for Oracle comments, annotations and PL/SQL public-contract documentation.
+- Non-obvious architecture and security documentation must explain why the boundary exists, not only what object implements it.
 - Every required PK, FK, UK and CHECK constraint must have a stable explicit name.
 - Every index must have a documented purpose or supporting query/constraint.
 - Do not add indexes only because a foreign key exists. Add them when the workload, purge path or locking behavior justifies them.

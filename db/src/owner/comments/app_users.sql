@@ -1,20 +1,20 @@
 comment on table taskhub_owner.app_users is
-    'Application identities used by TaskHub; rows do not represent Oracle database users.';
+    'Canonical TaskHub application identities; these rows are not Oracle database users or login credentials.';
 
 comment on column taskhub_owner.app_users.id is
     'Surrogate primary key for an application identity.';
 
 comment on column taskhub_owner.app_users.username is
-    'Unique case-sensitive application username used by TASKHUB_API to resolve session identity.';
+    'Unique case-sensitive application username resolved by TASKHUB_API during trusted context initialization.';
 
 comment on column taskhub_owner.app_users.display_name is
     'Optional display name for the application user.';
 
 comment on column taskhub_owner.app_users.email is
-    'Optional email address for the application user; not an authentication credential.';
+    'Optional contact email; it is not an authentication credential or identity source.';
 
 comment on column taskhub_owner.app_users.is_active is
-    'Application identity status: Y permits context initialization; N denies it.';
+    'Application identity status: Y permits trusted context initialization; N rejects it while preserving history.';
 
 comment on column taskhub_owner.app_users.created_at is
     'Database timestamp when the application identity row was created.';

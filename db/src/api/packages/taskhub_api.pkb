@@ -14,6 +14,8 @@ as
             raise_application_error(-20002, 'TaskHub application context is not initialized.');
         end if;
 
+        -- Revalidate both context attributes and active status so deactivation or
+        -- malformed/stale session state fails before any owner-table DML.
         select id
           into l_app_user_id
           from taskhub_owner.app_users
@@ -42,6 +44,8 @@ as
             raise_application_error(-20003, 'TaskHub list name is invalid.');
         end if;
 
+        -- Ownership and creator audit are derived from trusted context; accepting
+        -- either from the caller would enable cross-user spoofing.
         insert into taskhub_owner.todo_lists (
             app_user_id,
             list_name,

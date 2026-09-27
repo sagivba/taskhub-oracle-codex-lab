@@ -10,7 +10,7 @@ select 'TABLE_COMMENT_MISMATCH' as issue,
 from user_tab_comments
 where table_name = 'TODO_LISTS'
   and nvl(comments, '~') <>
-      'Task lists owned by TaskHub application users.';
+      'Canonical task lists owned by TaskHub application users and written only through approved API operations.';
 
 with expected_comments (
     column_name,
@@ -20,28 +20,28 @@ with expected_comments (
            'Surrogate primary key for a task list.'
     from dual union all
     select 'APP_USER_ID',
-           'Application user that owns the task list.'
+           'Canonical owner derived by TASKHUB_API from TASKHUB_CTX; callers must not supply or override it.'
     from dual union all
     select 'LIST_NAME',
-           'Name of the task list.'
+           'Required user-visible task-list name supplied by the caller.'
     from dual union all
     select 'CREATED_AT',
            'Database timestamp when the task list was created.'
     from dual union all
     select 'CREATED_BY_USER_ID',
-           'Application user that created the task list.'
+           'Creator identity derived by TASKHUB_API from TASKHUB_CTX, never accepted from the caller.'
     from dual union all
     select 'UPDATED_AT',
            'Database timestamp of the most recent update; NULL until the task list is updated.'
     from dual union all
     select 'UPDATED_BY_USER_ID',
-           'Application user that performed the most recent update; NULL until the task list is updated.'
+           'Most recent updater derived from TASKHUB_CTX; NULL until the task list is updated.'
     from dual union all
     select 'DELETED_AT',
            'Soft-delete timestamp; NULL while the task list is active.'
     from dual union all
     select 'DELETED_BY_USER_ID',
-           'Application user that soft-deleted the task list; NULL while the task list is active.'
+           'Soft-delete actor derived from TASKHUB_CTX; NULL while the task list is active.'
     from dual
 ),
 actual_comments as (

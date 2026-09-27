@@ -17,6 +17,7 @@ as
         l_app_user_id taskhub_owner.app_users.id%type;
         l_username    taskhub_owner.app_users.username%type;
     begin
+        -- Clear first so lookup failure cannot preserve identity from a reused session.
         clear_context;
 
         select id,
@@ -40,6 +41,7 @@ as
         );
     exception
         when no_data_found then
+            -- Unknown and inactive identities intentionally share one failure contract.
             clear_context;
             raise_application_error(-20001, 'TaskHub application identity is invalid.');
         when others then

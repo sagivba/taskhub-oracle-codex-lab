@@ -18,3 +18,5 @@
 @@../../changes/0140_grant_create_list_insert.sql
 @@../../changes/0150_pkg_taskhub_api_create_list.sql
 @@../../changes/0160_grant_create_list_api.sql
+@@../../changes/0170_document_owner_objects.sql
+@@../../changes/0180_document_api_packages.sql

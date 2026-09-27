@@ -2,11 +2,11 @@
 
 ## Project state
 
-Status: TASK 20 SECURITY CONTEXT COMPLETE; CREATE-LIST API SLICE PASS
+Status: DOCUMENTATION HARDENING COMPLETE; TASK 20 AND CREATE-LIST API SLICE REMAIN PASS
 
 The TaskHub Oracle lab infrastructure is running, the three database schemas have been created and validated, and the Codex + SQLcl MCP read-only acceptance test has passed.
 
-The full canonical Task 10 owner-side model is implemented and structurally verified. Task 20 now has validated runtime/test context facades, deterministic stale-session protection and least-privilege grants. The first Task 40 vertical slice, `PKG_TASKHUB_API.CREATE_LIST`, is implemented and verified; the rest of Task 40 remains pending.
+The full canonical Task 10 owner-side model is implemented and structurally verified. Task 20 has validated runtime/test context facades and least-privilege grants. Documentation hardening now adds structured Oracle Annotations, WHAT/WHY package contracts and annotation export without changing public APIs, privileges or business behavior.
 
 ## Current task
 
@@ -110,11 +110,9 @@ TASKHUB_APP connection   : taskhub-app-mcp (verified through MCP)
 
 ## Open items
 
-1. Oracle Annotation export support is not implemented and no repository specification currently defines it; define scope before implementation.
-2. No PL/SQL package documentation convention is defined; establish one before broad package expansion.
-3. Task 30 filtered read-only views remain next in the approved task order.
-4. Task 40 still requires list update/delete and all tag operations, ownership/non-disclosure behavior and full CRUD tests.
-5. Positive `TASKHUB_APP` initialization through `INIT_FROM_APEX` requires a real APEX request context; DEV identity tests remain intentionally behind the ungranted test facade.
+1. Task 30 filtered read-only views remain next in the approved task order.
+2. Task 40 still requires list update/delete and all tag operations, ownership/non-disclosure behavior and full CRUD tests.
+3. Positive `TASKHUB_APP` initialization through `INIT_FROM_APEX` requires a real APEX request context; DEV identity tests remain intentionally behind the ungranted test facade.
 
 ## Evidence
 
@@ -127,6 +125,25 @@ Do not store credentials in evidence.
 ## Exact next step
 
 Begin Task 30 from `docs/tasks/30_views.md`. Do not expand the remaining Task 40 API before the Task 30 view gate passes.
+
+## Documentation hardening
+
+Status: PASS (2026-09-27)
+
+Completed:
+
+- Added a WHAT/WHY standard in `docs/database-documentation-standard.md` and linked it from `AGENTS.md`.
+- Improved traditional comments for security-sensitive ownership, audit, identity and association columns.
+- Added 126 Oracle Annotation usages across all five canonical tables: 30 table-level and 96 column-level.
+- Documented all four current package specifications as public contracts, including trust, identity, privileges, transaction, errors and testability.
+- Added only rationale comments to package bodies; executable statements and public signatures are unchanged.
+- Added read-only annotation export `db/export/0010_annotations.sql` using the verified Oracle 26ai `USER_ANNOTATIONS_USAGE` shape.
+- Applied changes `0170_document_owner_objects.sql` and `0180_document_api_packages.sql` through SQLcl MCP.
+- Verified exact comments/annotations, eight valid package objects, empty `USER_ERRORS`, unchanged signature/grant manifests and passing context/create-list/security regression behavior.
+
+Evidence:
+
+- `evidence/local/documentation_hardening_2026-09-27.md`
 
 ## Task 20 security context and create-list slice
 

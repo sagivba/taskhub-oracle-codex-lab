@@ -11,6 +11,7 @@ as
     )
     is
     begin
+        -- This username-taking path is isolated in a package not granted to TASKHUB_APP.
         pkg_taskhub_context_core.clear_context;
         pkg_taskhub_context_core.initialize_context(p_username);
     exception

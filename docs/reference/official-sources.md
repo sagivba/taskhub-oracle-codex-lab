@@ -12,6 +12,11 @@ Use official documentation when behavior is version-sensitive.
 - Oracle Database Security Guide - Application Contexts: https://docs.oracle.com/en/database/oracle/oracle-database/19/dbseg/creating-database-session-based-application-contexts1.html
 - CREATE CONTEXT SQL Reference: https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/CREATE-CONTEXT.html
 
+## Oracle Annotations
+
+- Annotations clause: https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/annotations_clause.html
+- ALL_ANNOTATIONS_USAGE dictionary view: https://docs.oracle.com/en/database/oracle/oracle-database/26/refrn/ALL_ANNOTATIONS_USAGE.html
+
 ## Oracle SQLcl MCP
 
 - SQLcl MCP Restrict Levels: https://docs.oracle.com/en/database/oracle/sql-developer-command-line/26.2/sqcug/configuring-restrict-levels-sqlcl-mcp-server.html

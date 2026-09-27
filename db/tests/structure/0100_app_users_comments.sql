@@ -10,7 +10,7 @@ select 'TABLE_COMMENT_MISMATCH' as issue,
 from user_tab_comments
 where table_name = 'APP_USERS'
   and nvl(comments, '~') <>
-      'Application identities used by TaskHub; rows do not represent Oracle database users.';
+      'Canonical TaskHub application identities; these rows are not Oracle database users or login credentials.';
 
 with expected_comments (
     column_name,
@@ -20,16 +20,16 @@ with expected_comments (
            'Surrogate primary key for an application identity.'
     from dual union all
     select 'USERNAME',
-           'Unique case-sensitive application username used by TASKHUB_API to resolve session identity.'
+           'Unique case-sensitive application username resolved by TASKHUB_API during trusted context initialization.'
     from dual union all
     select 'DISPLAY_NAME',
            'Optional display name for the application user.'
     from dual union all
     select 'EMAIL',
-           'Optional email address for the application user; not an authentication credential.'
+           'Optional contact email; it is not an authentication credential or identity source.'
     from dual union all
     select 'IS_ACTIVE',
-           'Application identity status: Y permits context initialization; N denies it.'
+           'Application identity status: Y permits trusted context initialization; N rejects it while preserving history.'
     from dual union all
     select 'CREATED_AT',
            'Database timestamp when the application identity row was created.'
