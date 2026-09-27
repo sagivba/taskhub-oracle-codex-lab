@@ -102,6 +102,15 @@ Tag lookup errors deliberately collapse missing, foreign and inactive objects in
 generic results. Association add/remove is idempotent, List deletion retains link rows
 for later purge, and Tag deletion physically removes its links before soft deletion.
 
+Task 50 adds only `TASKS INSERT` to `TASKHUB_API`; existing `UPDATE` implements both
+ordinary updates and logical deletion, so neither API nor application schema receives
+`TASKS DELETE`. Task ownership continues to inherit through a context-owned active
+List. Parent lookup collapses missing, foreign and inactive rows into one result, while
+a same-user parent in another List can report the same-list rule. Hierarchy validation
+combines proposed parent depth with active subtree height and rejects self-parenting,
+descendant cycles and any result beyond root/child/grandchild. Status uses canonical
+`CANCELED`; DONE state alone controls `COMPLETED_AT`.
+
 Forbidden shortcuts include:
 
 ```text

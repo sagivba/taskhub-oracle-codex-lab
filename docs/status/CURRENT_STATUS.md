@@ -2,15 +2,15 @@
 
 ## Project state
 
-Status: TASK 40 LIST/TAG API COMPLETE; TASKS 10, 20, 30 AND DOCUMENTATION HARDENING REMAIN PASS
+Status: TASK 50 TASK/SUBTASK API COMPLETE; TASKS 10, 20, 30, 40 AND DOCUMENTATION HARDENING REMAIN PASS
 
 The TaskHub Oracle lab infrastructure is running, the three database schemas have been created and validated, and the Codex + SQLcl MCP read-only acceptance test has passed.
 
-The canonical model, security context, documentation hardening and filtered read views remain verified. Task 40 now exposes context-owned List update/delete and normalized Tag association lifecycle operations through the definer-rights API with exact grants and deterministic Alice/Bob tests.
+The canonical model, security context, documentation hardening, filtered views and Task 40 List/Tag API remain verified. Task 50 now exposes context-owned Task create/update/subtree-delete behavior with bounded hierarchy, lifecycle, audit, non-disclosure and exact least-privilege grants.
 
 ## Current task
 
-docs/tasks/50_task_api.md
+docs/tasks/60_maintenance.md
 
 ## Approved architecture
 
@@ -88,7 +88,7 @@ Verified:
 - `TASKHUB_OWNER.TODO_LISTS`: `UPDATE` to `TASKHUB_API`;
 - `TASKHUB_OWNER.TAGS`: `SELECT WITH GRANT OPTION`, `INSERT`, `UPDATE` to `TASKHUB_API`;
 - `TASKHUB_OWNER.TODO_LIST_TAGS`: `SELECT WITH GRANT OPTION`, `INSERT`, `DELETE` to `TASKHUB_API`;
-- `TASKHUB_OWNER.TASKS`: `SELECT WITH GRANT OPTION`, `UPDATE` to `TASKHUB_API`;
+- `TASKHUB_OWNER.TASKS`: `SELECT WITH GRANT OPTION`, `INSERT`, `UPDATE` to `TASKHUB_API`;
 - `TASKHUB_API.PKG_TASKHUB_CONTEXT`: `EXECUTE` to `TASKHUB_APP`;
 - `TASKHUB_API.PKG_TASKHUB_API`: `EXECUTE` to `TASKHUB_APP`;
 - `TASKHUB_API.V_TODO_LISTS`, `V_TODO_LIST_TAGS`, `V_TASKS`, `V_TASK_TREE`: `SELECT` to `TASKHUB_APP`;
@@ -115,7 +115,7 @@ TASKHUB_APP connection   : taskhub-app-mcp (verified through MCP)
 
 ## Open items
 
-1. Task 50 requires Task hierarchy and lifecycle write operations; it has not been started.
+1. Task 60 requires retention-based hierarchy-safe purge and scheduler maintenance; it has not been started.
 2. Positive `TASKHUB_APP` initialization through `INIT_FROM_APEX` requires a real APEX request context; DEV identity tests remain intentionally behind the ungranted test facade.
 
 ## Evidence
@@ -128,7 +128,27 @@ Do not store credentials in evidence.
 
 ## Exact next step
 
-Begin Task 50 only when explicitly requested, using `docs/tasks/50_task_api.md`. Preserve the completed Task 40 List/Tag API and exact grant boundary.
+Begin Task 60 only when explicitly requested, using `docs/tasks/60_maintenance.md`. Preserve the completed Task 50 hierarchy/lifecycle API and exact grant boundary.
+
+## Task 50 Task and Subtask API
+
+Status: PASS (2026-09-27)
+
+Completed:
+
+- Preserved every Task 40 signature and added `CREATE_TASK`, `UPDATE_TASK` and `DELETE_TASK` to `PKG_TASKHUB_API`.
+- Used canonical `CANCELED`, priority `1..3`, context-derived audit identity and immutable `TODO_LIST_ID` after creation.
+- Enforced active context-owned Lists/Tasks/parents, same-List parenting, root/child/grandchild maximum depth, self/deep-cycle prevention and hierarchy-safe re-parenting based on ancestor depth plus subtree height.
+- Implemented DONE `COMPLETED_AT` set/preserve/clear lifecycle and soft deletion of a Task plus active same-List descendants with one logical timestamp.
+- Added only `TASKS INSERT` to `TASKHUB_API`; logical deletion continues through existing `UPDATE`, and `TASKHUB_APP` retains no owner-table privilege.
+- Added changes `0240` and `0250`, canonical source/grants, install-runner entries and persistent structure/security/functional tests.
+- Verified valid package specification/body, empty affected `USER_ERRORS`, exact defaults/signatures/grants, positive and negative hierarchy behavior, non-disclosure, lifecycle, priority order, audit, filtered views, caller rollback and zero residual rows.
+- Ran focused Task 20 context, Task 30 filtered-read, Task 40 List/Tag and restricted-runtime regressions; Task 60 was not started.
+- Existing TASKS comments and annotations already document ownership, same-List hierarchy, cycle/depth validation, lifecycle, priority and context-derived audit, so no owner metadata DDL was necessary.
+
+Evidence:
+
+- `evidence/local/task50_task_subtask_api_2026-09-27.md`
 
 ## Task 40 List and Tag API
 

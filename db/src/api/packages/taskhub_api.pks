@@ -4,7 +4,7 @@ as
     /*
      * Purpose
      *   Public business-operation boundary for TaskHub writes. The current incremental
-     *   contract exposes context-owned List and Tag operations.
+     *   contract exposes context-owned List, Tag and bounded Task-hierarchy operations.
      *
      * Trust boundary and rationale
      *   TASKHUB_APP is a restricted runtime principal and receives EXECUTE on this
@@ -26,6 +26,8 @@ as
      *   Application errors are local rather than centrally catalogued. Error -20002
      *   means context is missing or invalid; -20003 and -20005 mean List/Tag input
      *   validation failed; -20004 and -20006 are generic inaccessible List/Tag errors.
+     *   Task errors -20007 through -20011 cover invalid input, inaccessible tasks or
+     *   parents, same-list violations and invalid hierarchy results respectively.
      *   The generic errors deliberately do not disclose whether another user's or a
      *   soft-deleted object exists. Unexpected Oracle failures propagate.
      *
@@ -105,6 +107,54 @@ as
      */
     procedure delete_tag(
         p_tag_name in varchar2  -- Tag name matched by UPPER(TRIM(...)) for the current user only.
+    );
+
+    /*
+     * Creates an active Task in a context-owned active List and returns its generated
+     * ID. An optional parent must be active, accessible and in that same List; the
+     * resulting root/child/grandchild hierarchy may contain at most three levels.
+     * Status is normalized to the canonical values, priority is limited to 1..3, and
+     * initial DONE state receives a completion timestamp. Ownership and creator audit
+     * come only from TASKHUB_CTX. Errors do not disclose foreign Lists or parents, and
+     * the insert remains in the caller's transaction.
+     */
+    function create_task(
+        p_todo_list_id   in number,                        -- Active List resolved only for the current context user.
+        p_parent_task_id in number default null,           -- Optional active parent in the same List.
+        p_title          in varchar2,                      -- Required trimmed title, maximum 200 characters.
+        p_description    in varchar2 default null,         -- Optional description, maximum 4000 characters.
+        p_status         in varchar2 default 'OPEN',       -- OPEN, IN_PROGRESS, DONE or CANCELED.
+        p_priority       in pls_integer default 2,         -- 1 high, 2 medium, 3 low.
+        p_due_at         in timestamp default null         -- Optional due timestamp.
+    ) return number;
+
+    /*
+     * Updates mutable fields of one active context-owned Task without changing its
+     * containing List. Re-parenting is allowed only to an active same-List parent and
+     * is rejected when it would create a cycle or make the Task's active subtree exceed
+     * three levels. Entering DONE sets COMPLETED_AT once, remaining DONE preserves it,
+     * and leaving DONE clears it. Updater audit is context-derived; inaccessible Task
+     * and parent IDs use non-disclosing errors. The caller owns the transaction.
+     */
+    procedure update_task(
+        p_task_id        in number,       -- Active Task resolved through its context-owned active List.
+        p_parent_task_id in number,       -- New parent in the same List, or NULL for a root Task.
+        p_title          in varchar2,     -- Required trimmed title, maximum 200 characters.
+        p_description    in varchar2,     -- Optional description, maximum 4000 characters.
+        p_status         in varchar2,     -- OPEN, IN_PROGRESS, DONE or CANCELED.
+        p_priority       in pls_integer,  -- 1 high, 2 medium, 3 low.
+        p_due_at         in timestamp     -- Optional due timestamp.
+    );
+
+    /*
+     * Soft-deletes one active context-owned Task and every active same-List descendant
+     * with one logical timestamp and context-derived delete actor. No Task is physically
+     * removed and historical COMPLETED_AT values are preserved. Missing, foreign and
+     * already deleted Task IDs all raise the same -20008 error. The caller controls the
+     * transaction boundary.
+     */
+    procedure delete_task(
+        p_task_id in number  -- Active Task resolved through its context-owned active List.
     );
 end pkg_taskhub_api;
 /

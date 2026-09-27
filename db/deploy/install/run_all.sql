@@ -25,3 +25,5 @@
 @@../../changes/0210_grant_read_isolation_views.sql
 @@../../changes/0220_grant_list_tag_api_dml.sql
 @@../../changes/0230_pkg_taskhub_api_list_tag.sql
+@@../../changes/0240_grant_task_api_insert.sql
+@@../../changes/0250_pkg_taskhub_api_task_hierarchy.sql

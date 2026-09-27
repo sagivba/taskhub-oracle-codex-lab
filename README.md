@@ -94,8 +94,8 @@ evidence/
 ## Current state
 
 The manual bootstrap, canonical five-table owner model, context boundary, filtered
-read-only views and Task 40 List/Tag API are complete. Task 50 is the next approved
-milestone and has not been started.
+read-only views, Task 40 List/Tag API and Task 50 Task/Subtask API are complete.
+Task 60 is the next approved milestone and has not been started.
 
 See `docs/status/CURRENT_STATUS.md`.
 

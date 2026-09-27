@@ -14,7 +14,7 @@
 
 לכל משתמש אפליקטיבי יהיו מספר `To-Do Lists`.  
 לכל רשימה יהיו מספר `Tags`.  
-בכל רשימה יהיו `Tasks`, כאשר Task יכול להכיל Subtasks עד עומק של 3 רמות מתחת ל-Task הראשי.
+בכל רשימה יהיו `Tasks`, כאשר ההיררכיה מוגבלת לשלוש רמות כולל ה-Task הראשי.
 
 המטרה המרכזית של ה-POC היא לבדוק:
 
@@ -681,16 +681,14 @@ PARENT_TASK_ID = TASKS.ID
 
 ## 11.4 עומק מקסימלי
 
-העומק המותר:
+העומק המותר ב-API הכתיבה:
 
 ```text
-Task                     Level 0
+Task                     Level 1
 |
-+-- Subtask              Level 1
++-- Subtask              Level 2
     |
-    +-- Subtask          Level 2
-        |
-        +-- Subtask      Level 3
+    +-- Subtask          Level 3
 ```
 
 ניסיון ליצור:
@@ -943,6 +941,10 @@ TASK_DEPTH
 TASK_DEPTH = 0..3
 ```
 
+`TASK_DEPTH` הוא שדה תצוגה zero-based של View שהוגדר ב-Task 30 עם cap הגנתי
+של 3. פעולות הכתיבה של Task 50 יוצרות רק היררכיות חוקיות של Levels 1..3,
+ולכן rows שנוצרו דרך ה-API יופיעו ב-View עם `TASK_DEPTH = 0..2`.
+
 ניתן לממש באמצעות Oracle hierarchical query:
 
 ```text
@@ -1051,7 +1053,7 @@ procedure delete_tag (
 
 ```plsql
 function create_task (
-    p_list_id        in number,
+    p_todo_list_id   in number,
     p_parent_task_id in number default null,
     p_title          in varchar2,
     p_description    in varchar2 default null,
