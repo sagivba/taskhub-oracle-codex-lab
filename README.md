@@ -34,7 +34,7 @@ TASKHUB_OWNER
 
 - `TASKHUB_OWNER`: tables, constraints, indexes, comments and structured annotations.
 - `TASKHUB_API`: packages, filtered read-only views, context code and maintenance job.
-- `TASKHUB_APP`: future APEX parsing schema with only approved interface privileges.
+- `TASKHUB_APP`: APEX parsing schema with only approved interface privileges.
 
 ## Bootstrap boundary
 
@@ -97,8 +97,9 @@ The manual bootstrap and Database/API foundation through Task 60 are complete. T
 includes the canonical five-table owner model, context boundary, filtered read-only
 views, List/Tag and Task/Subtask APIs, retention-aware purge and monthly Scheduler job.
 
-Task 70 - ORDS + APEX Foundation is the next task. Its implementation has not started,
-and its architecture and execution contract must be approved before implementation.
+Task 70 - ORDS + APEX Foundation is complete. The ORDS/APEX platform, TaskHub
+workspace/accounts, minimal APEX application export/import, request-context
+lifecycle and mandatory browser isolation gate have passed. Task 80 has not started.
 
 See `docs/status/CURRENT_STATUS.md`.
 

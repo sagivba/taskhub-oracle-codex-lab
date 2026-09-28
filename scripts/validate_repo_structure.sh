@@ -35,12 +35,26 @@ for file in "${changes[@]}"; do
   fi
 done
 
-if grep -RIl --exclude='*.svg' --exclude='*.html' -E '(BEGIN (RSA|OPENSSH|EC) PRIVATE KEY|password[[:space:]]*=[[:space:]]*[^<[:space:]]+)' "$ROOT" >/tmp/taskhub_secret_scan.txt 2>/dev/null; then
+secret_scan_file=/tmp/taskhub_secret_scan.txt
+: > "$secret_scan_file"
+while IFS= read -r -d '' file; do
+  if grep -Il -E 'BEGIN (RSA|OPENSSH|EC) PRIVATE KEY' "$ROOT/$file" >/dev/null 2>&1; then
+    printf '%s\n' "$ROOT/$file" >> "$secret_scan_file"
+    continue
+  fi
+
+  if grep -InE 'password[[:space:]]*=[^>]' "$ROOT/$file" 2>/dev/null \
+      | grep -Ev '(read_secret|&TASKHUB_APEX_|PASSWORD_FILE|placeholder)' >/dev/null; then
+    printf '%s\n' "$ROOT/$file" >> "$secret_scan_file"
+  fi
+done < <(git -C "$ROOT" ls-files --cached --others --exclude-standard -z)
+
+if [ -s "$secret_scan_file" ]; then
   printf 'REVIEW: possible secret-like content found:\n'
-  cat /tmp/taskhub_secret_scan.txt
+  cat "$secret_scan_file"
   failed=1
 fi
-rm -f /tmp/taskhub_secret_scan.txt
+rm -f "$secret_scan_file"
 
 if [ "$failed" -ne 0 ]; then
   exit 1

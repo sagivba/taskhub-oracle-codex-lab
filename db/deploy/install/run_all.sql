@@ -30,3 +30,6 @@
 @@../../changes/0260_grant_maintenance_delete.sql
 @@../../changes/0270_pkg_taskhub_maint.sql
 @@../../changes/0280_create_monthly_purge_job.sql
+@@../../changes/0290_configure_apex_instance.sql
+@@../../changes/0300_create_taskhub_apex_workspace.sql
+@@../../changes/0310_create_taskhub_apex_accounts.sql

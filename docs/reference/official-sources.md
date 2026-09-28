@@ -7,6 +7,16 @@ Use official documentation when behavior is version-sensitive.
 - Creating Data Models with Quick SQL: https://docs.oracle.com/en/database/oracle/apex/26.1/apxdc/creating-data-models-quick-sql.html
 - Using Quick SQL: https://docs.oracle.com/en/database/oracle/apex/26.1/aeutl/using-quick-sql.html
 
+## Oracle APEX and ORDS 26
+
+- APEX 26.1 installation requirements: https://docs.oracle.com/en/database/oracle/apex/26.1/htmig/apex-installation-requirements.html
+- Installing APEX and ORDS: https://docs.oracle.com/en/database/oracle/apex/26.1/htmig/installing-and-configuring-apex-and-ords.html
+- APEX 26.1 download and checksums: https://www.oracle.com/tools/downloads/apex-downloads/
+- ORDS 26.2 installation guide: https://docs.oracle.com/en/database/oracle/oracle-rest-data-services/26.2/ordig/
+- APEX session API: https://docs.oracle.com/en/database/oracle/apex/26.1/aeapi/APEX_SESSION.html
+- APEX instance administration API: https://docs.oracle.com/en/database/oracle/apex/26.1/aeapi/APEX_INSTANCE_ADMIN.html
+- SQLcl APEX commands and APEXlang: https://docs.oracle.com/en/database/oracle/apex/26.1/apxdc/using-sqlcl-apexlang.html
+
 ## Oracle Application Context
 
 - Oracle Database Security Guide - Application Contexts: https://docs.oracle.com/en/database/oracle/oracle-database/19/dbseg/creating-database-session-based-application-contexts1.html

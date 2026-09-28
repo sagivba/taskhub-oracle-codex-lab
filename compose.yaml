@@ -1,0 +1,185 @@
+name: taskhub
+
+x-ords-image: &ords-image
+  image: container-registry.oracle.com/database/ords@sha256:385c7ba284cb1c325a0096252d4e4f759026f1377be31521a9b30f09ae721cbc
+
+x-ords-runtime-image: &ords-runtime-image
+  image: taskhub-ords-apex:26.2.3-apex26.1
+  build:
+    context: .task70/apex/apex/images
+    dockerfile: ../../../../docker/ords/Dockerfile
+
+x-setup-service: &setup-service
+  <<: *ords-image
+  profiles: [setup]
+  restart: "no"
+  user: "0:0"
+  depends_on:
+    db:
+      condition: service_healthy
+  networks:
+    - taskhub-net
+  volumes:
+    - taskhub-ords-config:/etc/ords/config
+    - ./scripts/task70/container:/opt/taskhub/scripts:ro
+
+services:
+  db:
+    image: container-registry.oracle.com/database/free@sha256:8a8084193724b95bc62247e3af4218b357e4f172c78925551b2181dbe2566232
+    container_name: taskhub-db
+    restart: unless-stopped
+    ports:
+      - "${TASKHUB_DB_HOST_PORT:-1522}:1521"
+    volumes:
+      - taskhub-oradata:/opt/oracle/oradata
+    networks:
+      taskhub-net:
+        aliases:
+          - db
+    healthcheck:
+      test: [CMD-SHELL, "/opt/oracle/checkDBStatus.sh >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 10s
+      retries: 30
+      start_period: 90s
+
+  ords:
+    <<: *ords-runtime-image
+    container_name: taskhub-ords
+    restart: unless-stopped
+    entrypoint: [/opt/oracle/ords/bin/ords]
+    command:
+      - --config
+      - /etc/ords/config
+      - serve
+      - --apex-images
+      - /opt/oracle/apex/images
+      - --apex-images-context-path
+      - /i
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "${TASKHUB_ORDS_HOST_PORT:-8181}:8181"
+    volumes:
+      - taskhub-ords-config:/etc/ords/config
+    networks:
+      - taskhub-net
+    healthcheck:
+      test: [CMD-SHELL, "curl --fail --silent --show-error --max-time 5 http://127.0.0.1:8181/ords/ >/dev/null"]
+      interval: 10s
+      timeout: 6s
+      retries: 30
+      start_period: 45s
+
+  ords-install:
+    <<: *setup-service
+    entrypoint: [/bin/bash, /opt/taskhub/scripts/with-secrets-as-oracle.sh, /opt/taskhub/scripts/install-ords.sh]
+    secrets:
+      - taskhub-sys-password
+      - taskhub-ords-public-password
+
+  apex-install:
+    <<: *setup-service
+    entrypoint: [/bin/bash, /opt/taskhub/scripts/with-secrets-as-oracle.sh, /opt/taskhub/scripts/install-apex.sh]
+    volumes:
+      - taskhub-ords-config:/etc/ords/config
+      - ./scripts/task70/container:/opt/taskhub/scripts:ro
+      - "${TASKHUB_APEX_HOME:-./.task70/apex/apex}:/opt/taskhub/apex:ro"
+    secrets:
+      - taskhub-sys-password
+      - taskhub-apex-public-password
+      - taskhub-apex-listener-password
+      - taskhub-apex-rest-public-password
+      - taskhub-apex-admin-password
+
+  apex-admin-resume:
+    <<: *setup-service
+    entrypoint: [/bin/bash, /opt/taskhub/scripts/with-secrets-as-oracle.sh, /opt/taskhub/scripts/resume-apex-admin.sh]
+    volumes:
+      - taskhub-ords-config:/etc/ords/config
+      - ./scripts/task70/container:/opt/taskhub/scripts:ro
+      - ./db:/opt/taskhub/db:ro
+    secrets:
+      - taskhub-sys-password
+      - taskhub-apex-admin-password
+
+  ords-repair:
+    <<: *setup-service
+    entrypoint: [/bin/bash, /opt/taskhub/scripts/with-secrets-as-oracle.sh, /opt/taskhub/scripts/repair-ords.sh]
+    secrets:
+      - taskhub-sys-password
+
+  apex-configure:
+    <<: *setup-service
+    entrypoint: [/bin/bash, /opt/taskhub/scripts/with-secrets-as-oracle.sh, /opt/taskhub/scripts/configure-apex.sh]
+    volumes:
+      - taskhub-ords-config:/etc/ords/config
+      - ./scripts/task70/container:/opt/taskhub/scripts:ro
+      - ./db:/opt/taskhub/db:ro
+    secrets:
+      - taskhub-sys-password
+      - taskhub-apex-alice-password
+      - taskhub-apex-bob-password
+
+  apex-import:
+    <<: *setup-service
+    entrypoint: [/bin/bash, /opt/taskhub/scripts/with-secrets-as-oracle.sh, /opt/taskhub/scripts/import-apex.sh]
+    volumes:
+      - taskhub-ords-config:/etc/ords/config
+      - ./scripts/task70/container:/opt/taskhub/scripts:ro
+      - ./db:/opt/taskhub/db:ro
+      - ./apex:/opt/taskhub/apex:ro
+    secrets:
+      - taskhub-sys-password
+
+  apexlang-validate:
+    <<: *setup-service
+    entrypoint: [/bin/bash, /opt/taskhub/scripts/with-secrets-as-oracle.sh, /opt/taskhub/scripts/validate-apexlang.sh]
+    volumes:
+      - taskhub-ords-config:/etc/ords/config
+      - ./scripts/task70/container:/opt/taskhub/scripts:ro
+      - ./db:/opt/taskhub/db:ro
+      - ./.task70/taskhub:/opt/taskhub/apexlang:ro
+    secrets:
+      - taskhub-sys-password
+
+  apexlang-import:
+    <<: *setup-service
+    entrypoint: [/bin/bash, /opt/taskhub/scripts/with-secrets-as-oracle.sh, /opt/taskhub/scripts/import-apexlang.sh]
+    volumes:
+      - taskhub-ords-config:/etc/ords/config
+      - ./scripts/task70/container:/opt/taskhub/scripts:ro
+      - ./db:/opt/taskhub/db:ro
+      - ./.task70/taskhub:/opt/taskhub/apexlang:ro
+    secrets:
+      - taskhub-sys-password
+
+volumes:
+  taskhub-oradata:
+    external: true
+    name: taskhub-oradata
+  taskhub-ords-config:
+    name: taskhub-ords-config
+
+networks:
+  taskhub-net:
+    name: taskhub-net
+
+secrets:
+  taskhub-sys-password:
+    file: ${TASKHUB_SYS_PASSWORD_FILE:-./.secrets/sys-password.txt}
+  taskhub-ords-public-password:
+    file: ${TASKHUB_ORDS_PUBLIC_PASSWORD_FILE:-./.secrets/ords-public-password.txt}
+  taskhub-apex-public-password:
+    file: ${TASKHUB_APEX_PUBLIC_PASSWORD_FILE:-./.secrets/apex-public-password.txt}
+  taskhub-apex-listener-password:
+    file: ${TASKHUB_APEX_LISTENER_PASSWORD_FILE:-./.secrets/apex-listener-password.txt}
+  taskhub-apex-rest-public-password:
+    file: ${TASKHUB_APEX_REST_PUBLIC_PASSWORD_FILE:-./.secrets/apex-rest-public-password.txt}
+  taskhub-apex-admin-password:
+    file: ${TASKHUB_APEX_ADMIN_PASSWORD_FILE:-./.secrets/apex-admin-password.txt}
+  taskhub-apex-alice-password:
+    file: ${TASKHUB_APEX_ALICE_PASSWORD_FILE:-./.secrets/apex-alice-password.txt}
+  taskhub-apex-bob-password:
+    file: ${TASKHUB_APEX_BOB_PASSWORD_FILE:-./.secrets/apex-bob-password.txt}

@@ -2,18 +2,19 @@
 
 ## Project state
 
-Status: DATABASE/API FOUNDATION THROUGH TASK 60 COMPLETE; TASK 70 ORDS + APEX FOUNDATION IS NEXT AND NOT STARTED
+Status: TASK 70 ORDS + APEX FOUNDATION COMPLETE; TASK 80 NOT STARTED
 
 The TaskHub Oracle lab infrastructure is running, the three database schemas have been created and validated, and the Codex + SQLcl MCP read-only acceptance test has passed.
 
 The canonical model, security context, documentation hardening, filtered views,
 List/Tag and Task/Subtask APIs, retention-aware purge and monthly Scheduler job are
-complete and verified. No Task 70 implementation or ORDS/APEX architecture decision
-has been started in this housekeeping pass.
+complete and verified. Task 70 platform/workspace/account provisioning, minimal
+APEX application import/export, request-context lifecycle validation and manual
+Alice/Bob browser isolation acceptance are complete.
 
 ## Current task
 
-docs/tasks/70_ords_apex_foundation.md (next; NOT STARTED)
+docs/tasks/70_ords_apex_foundation.md (COMPLETE)
 
 ## Approved architecture
 
@@ -37,6 +38,15 @@ Docker Engine version     : 29.1.3
 Oracle container          : taskhub-db
 Oracle volume             : taskhub-oradata
 Oracle network            : taskhub-net
+Compose project           : taskhub (adopted 2026-09-28)
+ORDS target               : 26.2.3, pinned image digest
+APEX target               : 26.1, English-only full development environment
+ORDS runtime              : taskhub-ords healthy; http://localhost:8181/ords/
+APEX Administration       : http://localhost:8181/ords/apex_admin (human-verified)
+APEX static resources     : self-contained derived ORDS image; /i/ served
+APEX workspace            : TASKHUB
+APEX parsing schema       : TASKHUB_APP
+APEX authentication       : Oracle APEX Accounts
 
 Oracle image              : container-registry.oracle.com/database/free
 Oracle image digest       : sha256:8a8084193724b95bc62247e3af4218b357e4f172c78925551b2181dbe2566232
@@ -119,9 +129,8 @@ TASKHUB_APP connection   : taskhub-app-mcp (verified through MCP)
 
 ## Open items
 
-1. Task 70 ORDS/APEX scope, architecture decisions, outputs, tests and stop condition must be defined and approved before implementation.
-2. Positive `TASKHUB_APP` initialization through `INIT_FROM_APEX` requires a real APEX request context; DEV identity tests remain intentionally behind the ungranted test facade.
-3. The security/regression suite, clean rebuild gate and manual QA deployment package remain valid future work as Tasks 80, 90 and 100.
+1. Task 80, 90 and 100 have not started.
+2. Do not begin Task 80 without a separate task request.
 
 ## Evidence
 
@@ -133,10 +142,97 @@ Do not store credentials in evidence.
 
 ## Exact next step
 
-Define and approve the Task 70 contract and required ORDS/APEX decisions before any
-implementation. Use `docs/tasks/70_ords_apex_foundation.md`, preserve the completed
-Task 60 Database/API and least-privilege boundaries, and do not infer architecture from
-this status-only reconciliation.
+Task 70 is complete. Await a separate request before beginning Task 80.
+
+## Task 70 ORDS and APEX Foundation
+
+Status: COMPLETE (2026-09-28)
+
+Completed Task 70A platform/workspace work:
+
+- Confirmed the clean `main` baseline at commit `d2c182d`.
+- Positively identified the healthy `taskhub-db`, external `taskhub-oradata`,
+  protected cold-backup volume, network and exact database image digest.
+- Recomputed the protected archive SHA-256 with an exact match; no backup artifact
+  was mounted or modified.
+- Confirmed the Tasks 00-60 schemas, grants, active Alice/Bob identities and valid
+  API objects remain intact before platform installation.
+- Verified APEX 26.1 compatibility with database 23.26.1 and ORDS 26.2.3.
+- Added a minimal Compose topology with an external Oracle data volume, persistent
+  ORDS configuration, Docker DNS `db:1521/FREEPDB1`, and only ports 1522/8181.
+- Adopted `taskhub-db` and `taskhub-net` into the Compose project after rechecking
+  the exact mount; the database returned healthy on the original external volume.
+- Reconnected to `TASKHUB_API@FREEPDB1` after adoption and reconfirmed zero invalid
+  API objects, two active POC identities and six runtime grants.
+- Human SYSDBA prerequisite check passed in `FREEPDB1`: SGA 1,603,375,136 bytes,
+  PGA target 536,870,912 bytes, effective SYSAUX/SYSTEM capacity above the APEX
+  minimum, and no pre-existing APEX or ORDS registry components or users.
+- Added controlled, secret-file-backed ORDS/APEX setup scripts that do not alter the
+  DEFAULT profile and disable unrelated ORDS developer/data endpoints.
+- Added numbered APEX instance/workspace/account changes, canonical source, import
+  runner and Task 70 structure/security/context tests.
+- Downloaded the official APEX 26.1 English archive into ignored local staging and
+  verified Oracle's published SHA-256.
+- Installed APEX 26.1 in `FREEPDB1`, repaired the existing ORDS 26.2.3 repository,
+  configured the INTERNAL `ADMIN` account, and kept unrelated ORDS endpoints
+  disabled.
+- Created workspace `TASKHUB`, mapped only `TASKHUB_APP`, and created the exact
+  unlocked Oracle APEX Accounts `TASKHUB_TEST_ALICE` and `TASKHUB_TEST_BOB`.
+- Built the self-contained ORDS runtime image containing only APEX 26.1 static
+  images. `/i/` and APEX Administration Services load through ORDS.
+- Preserved the protected pre-Task-70 cold backup and created the verified post-ORDS/
+  APEX cold backup volume `taskhub-oradata-post-ords-apex-cold` (archive SHA-256
+  `5b2ece086cc11ff946316f37e514d4ac1f4ee64f670684b8459f3488c09d8245`).
+
+Completed Task 70B minimal application:
+
+- Validated the bounded APEXlang authoring source with SQLcl 26.1.2.
+- Imported application `700` / `TaskHub` into existing workspace `TASKHUB` with
+  parsing schema `TASKHUB_APP`, Oracle APEX Accounts authentication, pages 0, 1
+  (TODO Lists) and 9999 (Login), and no supporting-object database changes.
+- Installed application-level Database Session Initialization code that clears
+  `TASKHUB_CTX`, calls `INIT_FROM_APEX` only when
+  `APEX_AUTHENTICATION.IS_AUTHENTICATED`, and clears context during cleanup.
+- Implemented the only business read through `TASKHUB_API.V_TODO_LISTS` and the
+  only write through `TASKHUB_API.PKG_TASKHUB_API.CREATE_LIST`.
+- Generated the sole version-controlled full SQL export `apex/taskhub_app.sql`;
+  reimport of that exact export passed the public APEX metadata/API-boundary
+  postcondition.
+- Added `0420_task70_apex_application.sql`, which validates application ID, workspace,
+  parsing schema, authentication scheme, lifecycle hooks, required pages, filtered
+  view, API write, absence of automatic DML, and absence of `TASKHUB_OWNER` page
+  references.
+- Corrected the persistent runtime-boundary test for Oracle 26ai's public
+  `ALL_TAB_PRIVS.TABLE_SCHEMA` column. It passes with no direct owner-table access,
+  no context-core/test/maintenance execution, and no `ANY` system privilege.
+- Passed APEXlang validation, the application postcondition on both initial import
+  and SQL-export reimport, static export validation, repository validation, Compose
+  configuration validation, and current DB/ORDS health (`ORDS HTTP 302`).
+
+Completed Task 70C request lifecycle and browser acceptance:
+
+- Corrected only `0080_task70_apex_request_context.sql` for APEX 26.1's specific
+  `ORA-20987` Database Session Setup wrapper and preserved unexpected-error
+  diagnostics through cleanup. The test still rejects any other error and asserts
+  empty TaskHub context after unknown/inactive identities.
+- Passed the real APEX-session lifecycle test through `taskhub-app-mcp`: Alice maps
+  `APEX$SESSION.APP_USER` to `TASKHUB_CTX.APP_USER_ID = 1`; Bob maps to ID 2 on the
+  reused database session; unknown and inactive identities fail closed; cleanup
+  leaves both APEX and TaskHub identity attributes empty.
+- Human browser acceptance passed: Alice logged in, created list ID 81
+  (`task for monday mornning`); Bob logged in after Alice logout, could not see it,
+  and created list ID 82 (`List nuber one`); after another login Alice could see
+  only her own list and not Bob's. Canonical ownership is Alice/ID 1 and Bob/ID 2.
+- Re-ran the APEX application metadata and runtime security-boundary tests, export
+  and repository validation. Application 700 remains `TASKHUB`/`TASKHUB_APP`, uses
+  Oracle APEX Accounts, approved view/API paths, exact expected pages, no direct
+  owner access, no prohibited package access, and no relevant `ANY` privilege.
+- POC pooling conclusion: direct evidence comes from one reused database session
+  exercised across Alice, Bob, rejected identities and cleanup. Browser evidence
+  independently validates the Alice/Bob ORDS/APEX flow and data isolation. This is
+  sufficient for the Task 70 POC acceptance criterion because initialization and
+  cleanup are application-level request hooks; it does not claim a production-scale
+  load/concurrency or physical ORDS-session-reuse measurement.
 
 ## Task 60 Maintenance and Purge
 

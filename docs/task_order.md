@@ -11,7 +11,7 @@ The tasks are intentionally small. Give Codex one task file at a time.
 | 40 | COMPLETE | `tasks/40_list_tag_api.md` | List/Tag API and security tests pass |
 | 50 | COMPLETE | `tasks/50_task_api.md` | Task hierarchy and lifecycle tests pass |
 | 60 | COMPLETE | `tasks/60_maintenance.md` | Purge retention/FK tests pass |
-| 70 | NOT STARTED | `tasks/70_ords_apex_foundation.md` | Scope, architecture decisions and implementation gate to be approved |
+| 70 | COMPLETE | `tasks/70_ords_apex_foundation.md` | ORDS/APEX platform, request identity, vertical slice, export and manual browser gate pass |
 | 80 | NOT STARTED | `tasks/80_security_regression.md` | Full security/regression suite passes |
 | 90 | NOT STARTED | `tasks/90_clean_rebuild.md` | Rebuild from Git passes from clean bootstrap |
 | 100 | NOT STARTED | `tasks/100_manual_deploy_package.md` | Human-reviewable QA package is complete |
